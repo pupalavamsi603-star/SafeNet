@@ -14,6 +14,7 @@ from typing import List, Optional
 from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends
 from fastapi.responses import StreamingResponse
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from google import genai as google_genai
@@ -465,16 +466,41 @@ async def root():
 app.include_router(api_router)
 
 _cors_origins = os.environ.get('CORS_ORIGINS', '').strip()
-_allow_origins = _cors_origins.split(',') if _cors_origins and _cors_origins != '*' else ["*"]
-_allow_credentials = bool(_cors_origins and _cors_origins != '*')
+_explicit_origins = [o.strip() for o in _cors_origins.split(',') if o.strip()] if _cors_origins else []
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=_allow_credentials,
-    allow_origins=_allow_origins,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+def _get_cors_origin(origin: str) -> str | None:
+    if not _explicit_origins:
+        return "*"
+    if origin in _explicit_origins:
+        return origin
+    # Allow all Vercel preview deployments for this project
+    if origin and ("vercel.app" in origin):
+        return origin
+    return None
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
+from starlette.responses import Response as StarletteResponse
+
+class FlexibleCORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: StarletteRequest, call_next):
+        origin = request.headers.get("origin", "")
+        allowed_origin = _get_cors_origin(origin)
+
+        if request.method == "OPTIONS":
+            response = StarletteResponse(status_code=204)
+        else:
+            response = await call_next(request)
+
+        if allowed_origin:
+            response.headers["access-control-allow-origin"] = allowed_origin
+            response.headers["access-control-allow-credentials"] = "true"
+            response.headers["access-control-allow-methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+            response.headers["access-control-allow-headers"] = "Content-Type, Authorization, Cookie"
+            response.headers["vary"] = "Origin"
+        return response
+
+app.add_middleware(FlexibleCORSMiddleware)
 
 
 @app.on_event("startup")
