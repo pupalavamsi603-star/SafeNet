@@ -16,7 +16,8 @@ from fastapi.responses import StreamingResponse
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
-from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
+from google import genai as google_genai
+from google.genai import types as genai_types
 from seed_data import SCAM_TYPES, SAFETY_TIPS, QUIZ_QUESTIONS, BLOG_POSTS
 
 mongo_url = os.environ['MONGO_URL']
@@ -272,15 +273,18 @@ async def ai_chat(data: ChatInput):
 
     async def gen():
         full = ""
-        for model in ("gemini-3-flash-preview", "gemini-2.5-flash"):
+        ai_client = google_genai.Client(api_key=GEMINI_API_KEY)
+        for model in ("gemini-2.0-flash", "gemini-1.5-flash"):
             try:
-                chat = LlmChat(api_key=GEMINI_API_KEY, session_id=data.session_id, system_message=CHAT_SYSTEM).with_model("gemini", model)
-                async for ev in chat.stream_message(UserMessage(text=context + data.message)):
-                    if isinstance(ev, TextDelta):
-                        full += ev.content
-                        yield ev.content
-                    elif isinstance(ev, StreamDone):
-                        break
+                response = ai_client.models.generate_content_stream(
+                    model=model,
+                    contents=context + data.message,
+                    config=genai_types.GenerateContentConfig(system_instruction=CHAT_SYSTEM),
+                )
+                for chunk in response:
+                    if chunk.text:
+                        full += chunk.text
+                        yield chunk.text
                 break
             except Exception as e:
                 logger.error(f"AI chat error ({model}): {e}")
@@ -301,12 +305,16 @@ async def chat_history(session_id: str):
 @api_router.post("/ai/detect")
 async def ai_detect(data: DetectInput):
     import json as jsonlib
+    ai_client = google_genai.Client(api_key=GEMINI_API_KEY)
     last_error = None
-    for model in ("gemini-3-flash-preview", "gemini-2.5-flash"):
+    for model in ("gemini-2.0-flash", "gemini-1.5-flash"):
         try:
-            chat = LlmChat(api_key=GEMINI_API_KEY, session_id=f"detect-{uuid.uuid4()}", system_message=DETECT_SYSTEM).with_model("gemini", model)
-            result = await chat.send_message(UserMessage(text=f"Analyze this message for scam indicators:\n\n{data.message}"))
-            text = str(result).strip()
+            response = ai_client.models.generate_content(
+                model=model,
+                contents=f"Analyze this message for scam indicators:\n\n{data.message}",
+                config=genai_types.GenerateContentConfig(system_instruction=DETECT_SYSTEM),
+            )
+            text = response.text.strip()
             if text.startswith("```"):
                 text = text.split("```")[1]
                 if text.startswith("json"):
