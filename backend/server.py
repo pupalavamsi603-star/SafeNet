@@ -54,8 +54,9 @@ def create_refresh_token(user_id: str) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 def set_auth_cookies(response: Response, access: str, refresh: str):
-    response.set_cookie("access_token", access, httponly=True, secure=True, samesite="none", max_age=43200, path="/")
-    response.set_cookie("refresh_token", refresh, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
+    is_prod = bool(os.environ.get('CORS_ORIGINS', '').strip())
+    response.set_cookie("access_token", access, httponly=True, secure=is_prod, samesite="none" if is_prod else "lax", max_age=43200, path="/")
+    response.set_cookie("refresh_token", refresh, httponly=True, secure=is_prod, samesite="none" if is_prod else "lax", max_age=604800, path="/")
 
 async def get_current_user(request: Request) -> dict:
     token = request.cookies.get("access_token")
@@ -463,10 +464,14 @@ async def root():
 
 app.include_router(api_router)
 
+_cors_origins = os.environ.get('CORS_ORIGINS', '').strip()
+_allow_origins = _cors_origins.split(',') if _cors_origins and _cors_origins != '*' else ["*"]
+_allow_credentials = bool(_cors_origins and _cors_origins != '*')
+
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_credentials=_allow_credentials,
+    allow_origins=_allow_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
