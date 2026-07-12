@@ -1,0 +1,145 @@
+{
+  "project_name": "SafeNet - Modern AI-Powered Cyber Safety Website",
+  "theme": {
+    "mode": "Dark mode primary (matches cybersecurity theme), with Light mode toggle",
+    "colors": {
+      "primary": "#0F172A",
+      "accent_1": "#3B82F6",
+      "accent_2": "#EF4444",
+      "background_dark": "#020817",
+      "surface_dark": "rgba(15, 23, 42, 0.4)",
+      "text_dark_theme": "#F8FAFC",
+      "muted_dark_theme": "#94A3B8",
+      "background_light": "#F8FAFC",
+      "surface_light": "#FFFFFF",
+      "text_light_theme": "#0F172A",
+      "muted_light_theme": "#64748B"
+    }
+  },
+  "typography": {
+    "headings": {
+      "fontFamily": "'Unbounded', sans-serif",
+      "description": "Used for all H1-H4. Conveys authoritative, modern, web3/tech energy.",
+      "weights": "Light (300) for elegance or Black (900) for impact"
+    },
+    "body": {
+      "fontFamily": "'IBM Plex Sans', sans-serif",
+      "description": "Clean, highly legible monospace-adjacent font for data and body copy."
+    },
+    "rules": [
+      "Headlines (>32px) MUST use tracking-tight or tracking-tighter.",
+      "Overlines/Labels MUST be Uppercase, text-xs, tracking-[0.2em].",
+      "Never use Inter, Roboto, or Open Sans for headings.",
+      "Hierarchy gap: H1 to Subtitle jump shouldn't exceed 2 tailwind steps (e.g., text-6xl to text-2xl)."
+    ]
+  },
+  "layouts": {
+    "marketing_pages": {
+      "description": "Home, About, Tips, Scam Types. High visual impact.",
+      "grid": "Bento Grid (Tetris Mode): Asymmetrical grid-cols-1 md:grid-cols-12, wide gaps (gap-8).",
+      "hero_section": "Dark overlay on background (bg-black/40). Overlapping elements, non-centered typography.",
+      "surfaces": "Crystal Glassmorphism for sticky nav (backdrop-blur-xl bg-background/60, 1px inner border). Tracing Beam borders for Feature cards."
+    },
+    "dashboard_pages": {
+      "description": "Admin Dashboard, User Profile.",
+      "grid": "High Density Grid: Tight gaps (gap-4 or gap-6). 1px solid strokes instead of soft shadows.",
+      "surfaces": "Grid Borders (The 'Technical' Look): border-r border-b border-border/40."
+    },
+    "chatbot_ui": {
+      "description": "AI Scam Detection & Chatbot.",
+      "style": "Streaming responses, visible stop buttons, typing indicators. Low-friction feedback (thumbs up/down). High contrast chat bubbles."
+    }
+  },
+  "grids": {
+    "general": "Always use generous spacing (p-6, p-8, p-12). Containers with border must have internal padding. Start with mobile-first grid-cols-1.",
+    "technical": "Grid items must be direct children of grid containers. Overwrite stretch behavior using align-items: start where necessary."
+  },
+  "component_rules": {
+    "general": "Use pure HTML + Tailwind CSS for structural layouts in marketing pages to achieve asymmetry. For interactive logic (Forms, Modals), always use Shadcn UI components but heavily customize them to remove default Vercel looks.",
+    "buttons": "Pill-shaped or sharp-edged. Must have interaction animations. Explicitly set text color on hover (e.g., hover:bg-sky-600 hover:text-white).",
+    "forms": "Use Shadcn Input, Select, Form, Checkbox. Do not use native HTML elements.",
+    "dialogs": "Use Shadcn Dialogs. Background must not be completely transparent.",
+    "toasts": "Use sonner for notifications. Import from /app/src/components/ui/sonner.js."
+  },
+  "visual_enhancers": {
+    "textures": "Subtle grain or noise overlays over the background to break digital flatness.",
+    "shapes": "Sharp edges or minimal border-radius (max 8px) for tech/authority vibe.",
+    "lines": "1px delicate inner strokes for glass panels.",
+    "hover_states": "Hover must explicitly set text color."
+  },
+  "motion": {
+    "libraries": [
+      "framer-motion"
+    ],
+    "rules": [
+      "No universal transitions (transition: all is FORBIDDEN).",
+      "Staggered entrance animations for grids/lists.",
+      "Micro-interactions: Buttons translate-y slightly or glow on hover.",
+      "Must respect prefers-reduced-motion."
+    ]
+  },
+  "accessibility": {
+    "contrast": "APCA or WCAG AA minimum 4.5:1 for body, 3:1 for large text.",
+    "testing": "All interactive elements MUST include data-testid attribute (kebab-case, role-based).",
+    "focus": "High contrast focus states (focus:ring-2 focus:ring-sky-400 focus:outline-none)."
+  },
+  "media": {
+    "icons": "Use lucide-react for consistent iconography.",
+    "images": "Never use placeholder images. Always preserve subjects. Apply dark overlays (max bg-black/50) over hero images to ensure text contrast."
+  },
+  "3d_libraries": {
+    "recommendation": "TSParticles or pure CSS generative backgrounds for subtle floating nodes/mesh behind the Hero or Chatbot section.",
+    "instructions": "Keep background transparent, lazy load elements so performance is preserved."
+  },
+  "image_urls": [
+    {
+      "url": "https://images.unsplash.com/photo-1750969185331-e03829f72c7d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODB8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRpZ2l0YWwlMjBuZXR3b3JrJTIwYmx1ZXxlbnwwfHx8fDE3ODM4Mzc1MDh8MA&ixlib=rb-4.1.0&q=85",
+      "category": "Hero Background",
+      "description": "Abstract blue lines and dots on black background. Place behind the hero section with a bg-black/40 overlay."
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1729554608003-5ec8be42da1d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2ODl8MHwxfHNlYXJjaHwxfHxob2xvZ3JhbSUyMEFJJTIwYnJhaW4lMjBibHVlfGVufDB8fHx8MTc4MzgzNzUwOHww&ixlib=rb-4.1.0&q=85",
+      "category": "AI Chatbot / Features",
+      "description": "A glowing holographic brain object. Ideal for the AI Scam Detection page or AI Assistant feature card."
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1614064548237-096f735f344f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzR8MHwxfHNlYXJjaHwyfHxzZWN1cml0eSUyMHBhZGxvY2slMjBnbG93aW5nfGVufDB8fHx8MTc4MzgzNzUwOHww&ixlib=rb-4.1.0&q=85",
+      "category": "Security Features",
+      "description": "Padlock on laptop with light trails. Great for the Scam Prevention Types or Cyber Safety Tips section."
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1728756666032-d0b5552b6384?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODB8MHwxfHNlYXJjaHwxfHxjeWJlciUyMHNlY3VyaXR5JTIwc2hpZWxkJTIwYmx1ZXxlbnwwfHx8fDE3ODM4Mzc1NDF8MA&ixlib=rb-4.1.0&q=85",
+      "category": "Cyber Shield",
+      "description": "A glass shield object with a blue background. Can be used for the Quiz section or as a visual anchor in the Report a Scam page."
+    }
+  ],
+  "instructions_to_main_agent": [
+    "You have .js files, so apply guidelines to .js (not .tsx) files.",
+    "Install required fonts in the global CSS or index.html: Google Fonts 'Unbounded' and 'IBM Plex Sans'.",
+    "Install lucide-react for all icons.",
+    "Install framer-motion for UI animations and sonner for toast notifications.",
+    "Implement a dark/light mode toggle in the nav, default to dark.",
+    "NEVER use generic placeholder text for image alt tags or missing content.",
+    "Ensure the hero header text is NOT centered; use asymmetrical layout.",
+    "Use standard semantic HTML sections inside custom UI components."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "Do not converge toward generic outputs. Avoid 'AI slop' aesthetics.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur).",
+    "You MUST NOT apply universal transition. Eg: transition: all. Always add transitions for specific interactive elements like button, input excluding transforms.",
+    "You MUST NOT center align the app container, ie do not add .App { text-align: center; } in the css file.",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style.",
+    "NEVER use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯 etc for icons.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Prioritize using pre-existing components from src/components/ui when applicable.",
+    "Use sonner for toasts, located in /app/src/components/ui/sonner.js."
+  ],
+  "GENERAL_UI_UX_DESIGN_GUIDELINES": [
+    "Always add GENERAL UI UX DESIGN GUIDELINES. All interactive and key informational elements MUST include a data-testid attribute to facilitate robust automated testing.",
+    "Data-testid should be kebab-case, role-based (NOT appearance-based). Example: data-testid='login-form-submit-button'."
+  ]
+}
