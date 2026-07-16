@@ -5,7 +5,7 @@ Build a modern, fully responsive AI-powered cyber safety website "SafeNet" with:
 
 ## User Choices
 - Full-stack React + FastAPI + MongoDB
-- AI: user's own Gemini API key (gemini-3-flash-preview, fallback gemini-2.5-flash via emergentintegrations)
+- AI: user's own Gemini API key via `google-genai` SDK (gemini-2.0-flash, fallback gemini-1.5-flash; originally emergentintegrations, swapped for deployment)
 - JWT-based email/password auth (httpOnly cookies)
 - Full scope MVP approved; multi-language & PDF guides deferred
 
@@ -29,14 +29,19 @@ Build a modern, fully responsive AI-powered cyber safety website "SafeNet" with:
 - Admin Dashboard: Overview (stat cards + reports-by-category bar chart), Scam Articles CRUD, Quiz CRUD, Reports (status workflow + detail w/ screenshot), Contact Messages (mark read), Users (list/delete)
 
 ## Credentials
-- Admin: admin@safenet.com / SafeNet@Admin2026 (see /app/memory/test_credentials.md)
+- Admin: seeded on startup from `ADMIN_EMAIL` / `ADMIN_PASSWORD` in `backend/.env` (never commit real values — .env is gitignored)
+
+## Hardening (July 2026)
+- CORS locked to explicit `CORS_ORIGINS` allowlist via starlette CORSMiddleware (vercel.app wildcard removed); preflight from disallowed origins properly rejected
+- `/api/auth/refresh` endpoint added (rotates both tokens); frontend axios interceptor silently refreshes on 401 and retries — sessions now last up to 7 days
+- Rate limiting: sliding-window per-IP limiter — /ai/chat 20/min, /ai/detect 10/min, auth endpoints 10/min (basic brute-force protection); 429 + Retry-After, with countdown cooldown UI in chat & detector
+- Plaintext admin credentials scrubbed from repo (PRD, auth_testing.md, backend_test.py, test_reports); tests read ADMIN_EMAIL/ADMIN_PASSWORD from env
 
 ## Backlog (prioritized)
-- P1: Blog post CRUD in admin; Safety Tips CRUD UI in admin (API already exists); rate-limit /api/ai/* endpoints
-- P1: /api/auth/refresh consumption (refresh token issued but unused); brute-force lockout
+- P1: Blog post CRUD in admin; Safety Tips CRUD UI in admin (API already exists)
 - P2: Multi-language support; downloadable PDF safety guides; forgot/reset password flow
 - P2: SEO meta tags per page; suppress /auth/me 401 console noise; DialogDescription for Radix a11y warnings
-- P2: Deployment (user mentioned Vercel/Render — can deploy on Emergent instead)
+- P2: Deployment (in progress — Render backend + Vercel frontend)
 
 ## Next Tasks
 1. Gather user feedback on MVP

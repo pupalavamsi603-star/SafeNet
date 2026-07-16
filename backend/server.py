@@ -5,16 +5,17 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 import os
+import time
 import uuid
 import logging
 import bcrypt
 import jwt
+from collections import defaultdict, deque
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends
 from fastapi.responses import StreamingResponse
 from starlette.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from google import genai as google_genai
@@ -28,6 +29,7 @@ db = client[os.environ['DB_NAME']]
 GEMINI_API_KEY = os.environ['GEMINI_API_KEY']
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
 
 app = FastAPI(title="SafeNet API")
 api_router = APIRouter(prefix="/api")
@@ -55,7 +57,8 @@ def create_refresh_token(user_id: str) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 def set_auth_cookies(response: Response, access: str, refresh: str):
-    is_prod = bool(os.environ.get('CORS_ORIGINS', '').strip())
+    # Cross-site cookies (SameSite=None; Secure) only needed when serving an https frontend on another domain
+    is_prod = "https://" in os.environ.get('CORS_ORIGINS', '')
     response.set_cookie("access_token", access, httponly=True, secure=is_prod, samesite="none" if is_prod else "lax", max_age=43200, path="/")
     response.set_cookie("refresh_token", refresh, httponly=True, secure=is_prod, samesite="none" if is_prod else "lax", max_age=604800, path="/")
 
@@ -84,6 +87,46 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
+
+
+# ---------- rate limiting ----------
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+class RateLimiter:
+    """Sliding-window in-memory rate limiter, keyed per client IP."""
+    def __init__(self, max_requests: int, window_seconds: int, name: str):
+        self.max_requests = max_requests
+        self.window = window_seconds
+        self.name = name
+        self.hits: dict = defaultdict(deque)
+
+    def __call__(self, request: Request):
+        now = time.monotonic()
+        key = _client_ip(request)
+        q = self.hits[key]
+        while q and now - q[0] > self.window:
+            q.popleft()
+        if len(q) >= self.max_requests:
+            retry_after = max(1, int(self.window - (now - q[0])) + 1)
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many requests. Please wait {retry_after} seconds and try again.",
+                headers={"Retry-After": str(retry_after)},
+            )
+        q.append(now)
+        # opportunistic cleanup so idle IPs don't accumulate forever
+        if len(self.hits) > 10_000:
+            for k in [k for k, v in self.hits.items() if not v or now - v[-1] > self.window]:
+                self.hits.pop(k, None)
+
+ai_chat_limiter = RateLimiter(max_requests=20, window_seconds=60, name="ai_chat")
+ai_detect_limiter = RateLimiter(max_requests=10, window_seconds=60, name="ai_detect")
+ai_qr_limiter = RateLimiter(max_requests=10, window_seconds=60, name="ai_qr")
+auth_limiter = RateLimiter(max_requests=10, window_seconds=60, name="auth")
 
 
 # ---------- models ----------
@@ -144,6 +187,12 @@ class ChatInput(BaseModel):
 class DetectInput(BaseModel):
     message: str = Field(min_length=5, max_length=6000)
 
+class QRScanInput(BaseModel):
+    content: str = Field(min_length=1, max_length=6000)
+
+class GoogleAuthInput(BaseModel):
+    credential: str = Field(min_length=20)
+
 class QuizSubmitInput(BaseModel):
     name: str = ""
     score: int
@@ -152,7 +201,7 @@ class QuizSubmitInput(BaseModel):
 
 # ---------- auth routes ----------
 @api_router.post("/auth/register")
-async def register(data: RegisterInput, response: Response):
+async def register(data: RegisterInput, response: Response, _=Depends(auth_limiter)):
     email = data.email.lower().strip()
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="An account with this email already exists")
@@ -162,13 +211,64 @@ async def register(data: RegisterInput, response: Response):
     return user
 
 @api_router.post("/auth/login")
-async def login(data: LoginInput, response: Response):
+async def login(data: LoginInput, response: Response, _=Depends(auth_limiter)):
     email = data.email.lower().strip()
     user = await db.users.find_one({"email": email})
-    if not user or not verify_password(data.password, user["password_hash"]):
+    if not user or not user.get("password_hash") or not verify_password(data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     set_auth_cookies(response, create_access_token(user["id"], email), create_refresh_token(user["id"]))
     return {"id": user["id"], "name": user["name"], "email": user["email"], "role": user["role"]}
+
+@api_router.post("/auth/google")
+async def google_auth(data: GoogleAuthInput, response: Response, _=Depends(auth_limiter)):
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=503, detail="Google sign-in is not configured on the server")
+    import httpx
+    async with httpx.AsyncClient(timeout=10) as hc:
+        resp = await hc.get("https://oauth2.googleapis.com/tokeninfo", params={"id_token": data.credential})
+    if resp.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+    info = resp.json()
+    if info.get("aud") != GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=401, detail="Google token audience mismatch")
+    if info.get("email_verified") not in (True, "true"):
+        raise HTTPException(status_code=401, detail="Google email not verified")
+    email = info["email"].lower().strip()
+    name = info.get("name") or email.split("@")[0]
+
+    user = await db.users.find_one({"email": email})
+    if user:
+        # link google to existing account
+        if user.get("auth_provider") != "google":
+            await db.users.update_one({"id": user["id"]}, {"$set": {"auth_provider": "google", "picture": info.get("picture", "")}})
+    else:
+        user = {
+            "id": str(uuid.uuid4()), "name": name, "email": email, "role": "user",
+            "auth_provider": "google", "picture": info.get("picture", ""), "created_at": now_iso(),
+        }
+        await db.users.insert_one({**user})
+    set_auth_cookies(response, create_access_token(user["id"], email), create_refresh_token(user["id"]))
+    return {"id": user["id"], "name": user["name"], "email": user["email"], "role": user.get("role", "user")}
+
+@api_router.post("/auth/refresh")
+async def refresh(request: Request, response: Response, _=Depends(auth_limiter)):
+    token = request.cookies.get("refresh_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="No refresh token")
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    if payload.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Invalid token type")
+    user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    # rotate both tokens
+    set_auth_cookies(response, create_access_token(user["id"], user["email"]), create_refresh_token(user["id"]))
+    return user
 
 @api_router.post("/auth/logout")
 async def logout(response: Response):
@@ -265,7 +365,7 @@ DETECT_SYSTEM = (
 )
 
 @api_router.post("/ai/chat")
-async def ai_chat(data: ChatInput):
+async def ai_chat(data: ChatInput, _=Depends(ai_chat_limiter)):
     history = await db.chat_messages.find({"session_id": data.session_id}, {"_id": 0}).sort("created_at", -1).to_list(10)
     history.reverse()
     context = ""
@@ -276,7 +376,7 @@ async def ai_chat(data: ChatInput):
     async def gen():
         full = ""
         ai_client = google_genai.Client(api_key=GEMINI_API_KEY)
-        for model in ("gemini-2.0-flash", "gemini-1.5-flash"):
+        for model in ("gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-3-flash-preview"):
             try:
                 response = ai_client.models.generate_content_stream(
                     model=model,
@@ -305,11 +405,11 @@ async def chat_history(session_id: str):
     return msgs
 
 @api_router.post("/ai/detect")
-async def ai_detect(data: DetectInput):
+async def ai_detect(data: DetectInput, _=Depends(ai_detect_limiter)):
     import json as jsonlib
     ai_client = google_genai.Client(api_key=GEMINI_API_KEY)
     last_error = None
-    for model in ("gemini-2.0-flash", "gemini-1.5-flash"):
+    for model in ("gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-3-flash-preview"):
         try:
             response = ai_client.models.generate_content(
                 model=model,
@@ -328,6 +428,82 @@ async def ai_detect(data: DetectInput):
             last_error = e
             logger.error(f"AI detect error ({model}): {e}")
     raise HTTPException(status_code=502, detail="Scam analysis failed. Please try again.")
+
+
+# ---------- QR scan analysis ----------
+QR_SYSTEM = (
+    "You are a QR code safety analysis engine. The user scanned a QR code and you receive its decoded content "
+    "(a URL, UPI/payment link, Wi-Fi config, vCard, or plain text). Assess whether it is safe or a scam. "
+    "Pay special attention to: phishing URLs, URL shorteners hiding destinations, fake bank/government domains, "
+    "UPI payment requests (upi://pay — scanning to RECEIVE money is a common scam; QR codes are for PAYING only), "
+    "APK/app download links, Wi-Fi configs from unknown sources, and lookalike/typosquatted domains. "
+    "Respond ONLY with valid JSON, no markdown fences, in this exact schema: "
+    '{"risk_level": "safe" | "suspicious" | "dangerous", "risk_score": <0-100 integer>, "content_type": "<URL | UPI Payment | Wi-Fi | Text | Contact | Other>", '
+    '"scam_type": "<short label or None detected>", "red_flags": ["<flag1>", "<flag2>"], '
+    '"explanation": "<2-3 sentence plain-language explanation>", "advice": ["<action1>", "<action2>", "<action3>"]}'
+)
+
+URL_SHORTENERS = {"bit.ly", "tinyurl.com", "goo.gl", "t.co", "is.gd", "buff.ly", "rebrand.ly", "cutt.ly", "shorturl.at", "rb.gy", "tiny.cc", "s.id", "v.gd", "ow.ly"}
+SUSPICIOUS_TLDS = {".tk", ".ml", ".ga", ".cf", ".gq", ".xyz", ".top", ".buzz", ".club", ".work", ".zip", ".icu"}
+
+def qr_heuristics(content: str) -> list:
+    """Instant local red-flag checks on decoded QR content, merged with the AI result."""
+    import re
+    flags = []
+    c = content.strip()
+    lower = c.lower()
+    if lower.startswith("upi://") or "upi://pay" in lower:
+        flags.append("UPI payment request — scanning a QR never gives you money, it only sends it")
+    if lower.startswith("http://"):
+        flags.append("Uses insecure http:// instead of https://")
+    m = re.search(r"https?://([^/\s:]+)", lower)
+    if m:
+        host = m.group(1)
+        if host in URL_SHORTENERS or any(host.endswith("." + s) for s in URL_SHORTENERS):
+            flags.append(f"Shortened URL ({host}) hides the real destination")
+        if re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}(:\d+)?", host):
+            flags.append("Links directly to a raw IP address instead of a domain")
+        if "xn--" in host:
+            flags.append("Punycode domain — may impersonate a real site with lookalike characters")
+        for tld in SUSPICIOUS_TLDS:
+            if host.endswith(tld):
+                flags.append(f"Domain uses a TLD ({tld}) frequently abused by scammers")
+                break
+        if re.search(r"\.(apk|exe|msi|bat|scr)($|\?)", lower):
+            flags.append("Direct app/executable download link — a common malware delivery trick")
+    if lower.startswith("wifi:"):
+        flags.append("Wi-Fi network configuration — only join networks from sources you trust")
+    return flags
+
+@api_router.post("/ai/qr")
+async def ai_qr(data: QRScanInput, _=Depends(ai_qr_limiter)):
+    import json as jsonlib
+    local_flags = qr_heuristics(data.content)
+    ai_client = google_genai.Client(api_key=GEMINI_API_KEY)
+    for model in ("gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-3-flash-preview"):
+        try:
+            hint = ("\n\nLocal heuristic checks already flagged: " + "; ".join(local_flags)) if local_flags else ""
+            response = ai_client.models.generate_content(
+                model=model,
+                contents=f"Analyze this decoded QR code content for scam indicators:\n\n{data.content}{hint}",
+                config=genai_types.GenerateContentConfig(system_instruction=QR_SYSTEM),
+            )
+            text = response.text.strip()
+            if text.startswith("```"):
+                text = text.split("```")[1]
+                if text.startswith("json"):
+                    text = text[4:]
+            parsed = jsonlib.loads(text.strip())
+            # merge local heuristic flags the AI may have missed
+            existing = {f.lower() for f in parsed.get("red_flags", [])}
+            for f in local_flags:
+                if f.lower() not in existing:
+                    parsed.setdefault("red_flags", []).append(f)
+            await db.qr_scans.insert_one({"id": str(uuid.uuid4()), "content": data.content[:1000], "result": parsed, "created_at": now_iso()})
+            return parsed
+        except Exception as e:
+            logger.error(f"AI QR error ({model}): {e}")
+    raise HTTPException(status_code=502, detail="QR analysis failed. Please try again.")
 
 
 # ---------- admin ----------
@@ -465,42 +641,18 @@ async def root():
 
 app.include_router(api_router)
 
+# Only origins explicitly listed in CORS_ORIGINS may make credentialed requests.
+# Add your production frontend URL (e.g. https://your-app.vercel.app) to CORS_ORIGINS on Render.
 _cors_origins = os.environ.get('CORS_ORIGINS', '').strip()
-_explicit_origins = [o.strip() for o in _cors_origins.split(',') if o.strip()] if _cors_origins else []
+_allowed_origins = [o.strip().rstrip('/') for o in _cors_origins.split(',') if o.strip()] or ["http://localhost:3000"]
 
-def _get_cors_origin(origin: str) -> str | None:
-    if not _explicit_origins:
-        return "*"
-    if origin in _explicit_origins:
-        return origin
-    # Allow all Vercel preview deployments for this project
-    if origin and ("vercel.app" in origin):
-        return origin
-    return None
-
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request as StarletteRequest
-from starlette.responses import Response as StarletteResponse
-
-class FlexibleCORSMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: StarletteRequest, call_next):
-        origin = request.headers.get("origin", "")
-        allowed_origin = _get_cors_origin(origin)
-
-        if request.method == "OPTIONS":
-            response = StarletteResponse(status_code=204)
-        else:
-            response = await call_next(request)
-
-        if allowed_origin:
-            response.headers["access-control-allow-origin"] = allowed_origin
-            response.headers["access-control-allow-credentials"] = "true"
-            response.headers["access-control-allow-methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-            response.headers["access-control-allow-headers"] = "Content-Type, Authorization, Cookie"
-            response.headers["vary"] = "Origin"
-        return response
-
-app.add_middleware(FlexibleCORSMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+)
 
 
 @app.on_event("startup")

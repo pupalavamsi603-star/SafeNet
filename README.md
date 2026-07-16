@@ -11,7 +11,8 @@ A modern, fully responsive full-stack web application for cyber safety awareness
 - **Report a Scam** — Anonymous scam reporting with screenshot upload
 - **Blog** — Cyber safety articles
 - **Admin Dashboard** — Full CRUD for scam articles, quiz, reports management, user management
-- **JWT Auth** — Email/password with httpOnly cookie sessions
+- **JWT Auth** — Email/password with httpOnly cookie sessions, silent refresh (7-day sessions)
+- **Rate Limiting** — Per-IP limits on AI & auth endpoints with friendly cooldown UI
 - **Dark/Light Mode** — Default dark, toggle in navbar
 - **Global Search** — Across scams, tips & blog
 
@@ -22,7 +23,7 @@ A modern, fully responsive full-stack web application for cyber safety awareness
 | Frontend | React 19, Tailwind CSS, shadcn/ui, framer-motion, Recharts |
 | Backend | FastAPI (Python), MongoDB (Motor async) |
 | Auth | JWT (PyJWT), bcrypt, httpOnly cookies |
-| AI | Google Gemini via `emergentintegrations` |
+| AI | Google Gemini via `google-genai` SDK (gemini-2.0-flash, fallback gemini-1.5-flash) |
 | Icons | lucide-react |
 
 ## 🚀 Getting Started
@@ -81,6 +82,8 @@ GEMINI_API_KEY=your_gemini_api_key
 JWT_SECRET=your_jwt_secret_here
 ADMIN_EMAIL=admin@safenet.com
 ADMIN_PASSWORD=YourAdminPassword
+# Comma-separated list of allowed frontend origins.
+# Only these origins can make credentialed API requests (add your production URL when deploying).
 CORS_ORIGINS=http://localhost:3000
 ```
 

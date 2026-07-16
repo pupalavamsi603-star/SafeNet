@@ -46,7 +46,7 @@
     "/app/test_reports/pytest/pytest_results.xml"
   ],
   "success_rate": {"backend": "97% (28/29)", "frontend": "100% (all critical flows verified)"},
-  "test_credentials": "admin@safenet.com / SafeNet@Admin2026 (verified working). Created test users via register: pwuser2_hmcszk@safenet.com and others (all with password User@1234).",
+  "test_credentials": "admin@safenet.com / <REDACTED> (verified working). Created test users via register: pwuser2_hmcszk@safenet.com and others (all with password User@1234).",
   "seed_data_creation": "During testing, several TEST_ prefixed reports/contacts were POSTed as functional tests. Test users pwuser2_*@safenet.com left in DB for future runs.",
   "retest_needed": false,
   "main_agent_can_self_test": true,

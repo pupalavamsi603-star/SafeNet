@@ -11,8 +11,11 @@ import requests
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://protect-online-6.preview.emergentagent.com').rstrip('/')
 API = f"{BASE_URL}/api"
 
-ADMIN_EMAIL = "admin@safenet.com"
-ADMIN_PASSWORD = "SafeNet@Admin2026"
+# Admin credentials come from the environment — never hardcode them here.
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@safenet.com')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD')
+if not ADMIN_PASSWORD:
+    pytest.skip("Set ADMIN_PASSWORD (and optionally ADMIN_EMAIL) env vars to run these tests", allow_module_level=True)
 
 
 # ---------- fixtures ----------
