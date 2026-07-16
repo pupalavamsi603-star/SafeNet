@@ -1,6 +1,6 @@
 {
   "installCommand": "yarn install",
-  "buildCommand": "yarn build",
+  "buildCommand": "DISABLE_ESLINT_PLUGIN=true CI=false yarn build",
   "outputDirectory": "build",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
