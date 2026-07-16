@@ -127,6 +127,7 @@ ai_chat_limiter = RateLimiter(max_requests=20, window_seconds=60, name="ai_chat"
 ai_detect_limiter = RateLimiter(max_requests=10, window_seconds=60, name="ai_detect")
 ai_qr_limiter = RateLimiter(max_requests=10, window_seconds=60, name="ai_qr")
 auth_limiter = RateLimiter(max_requests=10, window_seconds=60, name="auth")
+url_check_limiter = RateLimiter(max_requests=15, window_seconds=60, name="url_check")
 
 
 # ---------- models ----------
@@ -193,6 +194,9 @@ class DetectInput(BaseModel):
 class QRScanInput(BaseModel):
     content: str = Field(min_length=1, max_length=6000)
     user_id: str = ""
+
+class URLCheckInput(BaseModel):
+    url: str = Field(min_length=4, max_length=2000)
 
 class GoogleAuthInput(BaseModel):
     credential: str = Field(min_length=20)
@@ -528,6 +532,83 @@ async def ai_qr(data: QRScanInput, _=Depends(ai_qr_limiter)):
     except Exception as e:
         logger.error(f"AI QR error: {e}")
         raise HTTPException(status_code=502, detail="QR analysis failed. Please try again.")
+
+
+# ---------- URL check ----------
+
+SUSPICIOUS_TLDS_URL = {".tk", ".ml", ".ga", ".cf", ".gq", ".xyz", ".top", ".buzz", ".club", ".work", ".zip", ".icu", ".review", ".date", ".loan", ".download", ".men", ".win", ".bid"}
+URL_SHORTENERS_URL = {"bit.ly", "tinyurl.com", "goo.gl", "t.co", "is.gd", "buff.ly", "rebrand.ly", "cutt.ly", "shorturl.at", "rb.gy", "tiny.cc", "s.id", "v.gd", "ow.ly", "cli.gs", "url.ie", "tr.im"}
+
+def url_heuristics(url: str) -> list:
+    import re
+    flags = []
+    u = url.strip().lower()
+    if not u.startswith("https://") and not u.startswith("http://"):
+        u = "http://" + u
+    if u.startswith("http://"):
+        flags.append("Uses insecure HTTP instead of encrypted HTTPS")
+    m = re.search(r"https?://([^/\s:?]+)", u)
+    if m:
+        host = m.group(1)
+        if host in URL_SHORTENERS_URL or any(host.endswith("." + s) for s in URL_SHORTENERS_URL):
+            flags.append(f"Shortened URL ({host}) hides the real destination")
+        if re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}(:\d+)?", host):
+            flags.append("Links directly to a raw IP address — unusual for legitimate sites")
+        if "xn--" in host:
+            flags.append("Punycode domain — may impersonate a trusted site with lookalike characters")
+        for tld in SUSPICIOUS_TLDS_URL:
+            if host.endswith(tld):
+                flags.append(f"Domain uses {tld} — a TLD commonly abused by scammers")
+                break
+        if re.search(r"\.(apk|exe|msi|bat|scr|zip|rar)($|\?)", u):
+            flags.append("Direct download link for executables — common malware delivery method")
+        dots = host.rstrip("/").count(".")
+        subdomain = host.split(".")[0] if dots > 1 else ""
+        if subdomain and subdomain not in ("www", "mail", "m", "shop", "blog", "app", "api", "docs", "help", "support", "login", "account", "secure", "web", "beta", "portal"):
+            score = 0
+            for kw in ("secure", "login", "account", "bank", "verify", "update", "confirm", "paypal", "apple", "google", "microsoft", "amazon", "netflix", "insta", "faceboo", "whatsapp", "telegram", "signin", "2fa", "auth", "wallet", "refund", "claim", "prize", "won", "free", "gift", "bonus", "reward", "cash", "lottery", "crypto", "bitcoin"):
+                if kw in subdomain or kw in host:
+                    score += 1
+            if score >= 2:
+                flags.append(f"Suspicious domain name ({host}) — mimics a real brand or service")
+    return flags
+
+URL_CHECK_SYSTEM = (
+    "You are a URL safety analysis engine. A user submits a URL, and you assess whether it is safe or a phishing/scam link. "
+    "Consider: suspicious domain patterns, typosquatting (e.g., go0gle, faceboook), lookalike TLDs (.com vs .co, .org vs .net variants), "
+    "excessive subdomains, long query parameters hiding malicious payload, known phishing keywords in the path. "
+    "Respond ONLY with valid JSON, no markdown fences, in this exact schema: "
+    '{"risk_level": "safe" | "suspicious" | "dangerous", "risk_score": <0-100 integer>, '
+    '"scam_type": "<short label or None detected>", "red_flags": ["<flag1>", "<flag2>"], '
+    '"explanation": "<2-3 sentence plain-language explanation>", "advice": ["<action1>", "<action2>", "<action3>"]}'
+)
+
+@api_router.post("/ai/url-check")
+async def ai_url_check(data: URLCheckInput, _=Depends(url_check_limiter)):
+    import json as jsonlib
+    local_flags = url_heuristics(data.url)
+    ai_client = openai.AsyncOpenAI(api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/v1")
+    try:
+        hint = ("\n\nLocal checks already flagged: " + "; ".join(local_flags)) if local_flags else ""
+        messages = [
+            {"role": "system", "content": URL_CHECK_SYSTEM},
+            {"role": "user", "content": f"Analyze this URL for scam indicators:\n\n{data.url}{hint}"},
+        ]
+        response = await ai_client.chat.completions.create(model=OPENROUTER_MODEL, messages=messages)
+        text = response.choices[0].message.content.strip()
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        parsed = jsonlib.loads(text.strip())
+        existing = {f.lower() for f in parsed.get("red_flags", [])}
+        for f in local_flags:
+            if f.lower() not in existing:
+                parsed.setdefault("red_flags", []).append(f)
+        return parsed
+    except Exception as e:
+        logger.error(f"AI URL check error: {e}")
+        raise HTTPException(status_code=502, detail="URL check failed. Please try again.")
 
 
 # ---------- user dashboard ----------

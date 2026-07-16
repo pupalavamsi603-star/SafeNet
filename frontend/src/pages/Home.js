@@ -1,11 +1,14 @@
-import { Link } from "react-router-dom";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   Shield, Bot, ScanSearch, GraduationCap, BookOpenCheck, ArrowRight,
-  MessageSquareWarning, Lock, AlertTriangle, ChevronRight,
+  MessageSquareWarning, Lock, AlertTriangle, ChevronRight, Globe,
+  ShieldCheck, ShieldAlert, Loader2, ExternalLink, CheckCircle2,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../components/ui/accordion";
+import { api, formatApiErrorDetail } from "../lib/api";
 
 const HERO_IMG = "https://images.unsplash.com/photo-1750969185331-e03829f72c7d?crop=entropy&cs=srgb&fm=jpg&q=85&w=1800";
 
@@ -32,6 +35,128 @@ const faqs = [
 ];
 
 const fadeUp = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0 } };
+
+const riskCfg = {
+  safe: { color: "text-emerald-500", bg: "bg-emerald-500/10 border-emerald-500/30", bar: "bg-emerald-500", icon: ShieldCheck, label: "Looks Safe" },
+  suspicious: { color: "text-amber-500", bg: "bg-amber-500/10 border-amber-500/30", bar: "bg-amber-500", icon: AlertTriangle, label: "Suspicious" },
+  dangerous: { color: "text-red-500", bg: "bg-red-500/10 border-red-500/30", bar: "bg-red-500", icon: ShieldAlert, label: "Dangerous" },
+};
+
+function URLTool() {
+  const [url, setUrl] = useState("");
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const resultRef = useRef(null);
+
+  const check = async () => {
+    const u = url.trim();
+    if (!u) { setError("Enter a URL to check"); return; }
+    setError("");
+    setLoading(true);
+    setResult(null);
+    try {
+      const { data } = await api.post("/ai/url-check", { url: u });
+      setResult(data);
+      setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 100);
+    } catch (e) {
+      setError(formatApiErrorDetail(e.response?.data?.detail) || "Check failed. Try again.");
+    }
+    setLoading(false);
+  };
+
+  const cfg = result ? riskCfg[result.risk_level] || riskCfg.suspicious : null;
+
+  return (
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 py-24" id="url-check">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+        <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+          <p className="text-xs uppercase tracking-[0.25em] text-sky-500 mb-3 flex items-center gap-2">
+            <Globe className="w-4 h-4" /> URL Safety Checker
+          </p>
+          <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tighter">Is that link safe to click?</h2>
+          <p className="text-sm text-muted-foreground mt-4 leading-relaxed max-w-md">
+            Paste any suspicious link — SMS, email, social media — and get an instant AI safety analysis before you click.
+          </p>
+          <div className="mt-7 flex gap-3">
+            <Input
+              value={url}
+              onChange={(e) => { setUrl(e.target.value); setError(""); }}
+              onKeyDown={(e) => e.key === "Enter" && check()}
+              placeholder="https://suspicious-link.com/..."
+              className="h-12 rounded-xl flex-1 text-sm"
+              data-testid="url-check-input"
+            />
+            <Button onClick={check} disabled={loading} className="h-12 rounded-xl bg-sky-500 hover:bg-sky-600 text-white px-6 shrink-0" data-testid="url-check-button">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Shield className="w-4 h-4 mr-1.5" /> Check URL</>}
+            </Button>
+          </div>
+          {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+        </motion.div>
+
+        <motion.div ref={resultRef} initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: 0.1 }}>
+          {!result && !loading && (
+            <div className="rounded-xl border bg-card p-10 text-center">
+              <Globe className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" strokeWidth={1.2} />
+              <p className="text-sm text-muted-foreground">Enter a URL above and we'll check it for phishing, malware, or scam indicators — powered by AI.</p>
+            </div>
+          )}
+          {loading && (
+            <div className="rounded-xl border bg-card p-10 text-center flex flex-col items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-sky-500" />
+              </div>
+              <p className="text-sm text-muted-foreground">AI is analyzing this URL...</p>
+            </div>
+          )}
+          {result && cfg && (
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border bg-card p-6 space-y-5">
+              <div className={`rounded-xl border p-5 ${cfg.bg}`}>
+                <div className="flex items-center gap-3">
+                  <cfg.icon className={`w-8 h-8 ${cfg.color}`} strokeWidth={1.6} />
+                  <div>
+                    <p className={`font-heading text-lg font-bold tracking-tight ${cfg.color}`}>{cfg.label}</p>
+                    {result.scam_type && result.scam_type !== "None detected" && (
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider mt-0.5">{result.scam_type}</p>
+                    )}
+                  </div>
+                  <span className={`ml-auto font-heading text-2xl font-bold ${cfg.color}`}>{result.risk_score}<span className="text-sm">/100</span></span>
+                </div>
+                <div className="mt-4 h-2 rounded-full bg-secondary overflow-hidden">
+                  <motion.div className={`h-full rounded-full ${cfg.bar}`} initial={{ width: 0 }} animate={{ width: `${result.risk_score}%` }} transition={{ duration: 0.8, ease: "easeOut" }} />
+                </div>
+              </div>
+              {result.explanation && <p className="text-sm leading-relaxed">{result.explanation}</p>}
+              {result.red_flags?.length > 0 && (
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2.5">Red flags</p>
+                  <ul className="space-y-2">
+                    {result.red_flags.map((f, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm"><AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" /> {f}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {result.advice?.length > 0 && (
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2.5">What to do</p>
+                  <ul className="space-y-2">
+                    {result.advice.map((a, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm"><ShieldCheck className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" /> {a}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1.5" onClick={() => { setResult(null); setUrl(""); }}>
+                <CheckCircle2 className="w-3.5 h-3.5" /> Check another URL
+              </Button>
+            </motion.div>
+          )}
+        </motion.div>
+      </div>
+    </section>
+  );
+}
 
 export default function Home() {
   return (
@@ -92,6 +217,8 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
+
+      <URLTool />
 
       {/* STATS */}
       <section className="border-b">
