@@ -123,7 +123,7 @@ export function StarField({ density = 110, color = "255, 255, 255", useVar }) {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseout", onLeave);
     };
-  }, [density, color]);
+  }, [density, color, useVar]);
 
   return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" aria-hidden="true" />;
 }
