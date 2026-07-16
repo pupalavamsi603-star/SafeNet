@@ -43,7 +43,7 @@ export function GoogleSignInButton({ text = "continue_with" }) {
               const { data } = await api.post("/auth/google", { credential });
               setUser(data);
               toast.success(`Welcome, ${data.name}!`);
-              navigate(data.role === "admin" ? "/admin" : "/");
+              navigate(data.role === "admin" ? "/admin" : "/dashboard");
             } catch (err) {
               toast.error(formatApiErrorDetail(err.response?.data?.detail));
             }

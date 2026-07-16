@@ -31,7 +31,7 @@ export default function Register() {
       const { data } = await api.post("/auth/register", { name: form.name, email: form.email, password: form.password });
       setUser(data);
       toast.success(`Welcome to SafeNet, ${data.name}!`);
-      navigate("/");
+      navigate(data.role === "admin" ? "/admin" : "/dashboard");
     } catch (err) {
       setError(formatApiErrorDetail(err.response?.data?.detail));
     } finally {

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Bot, SendHorizonal, ScanSearch, User, Loader2, AlertTriangle, ShieldCheck, ShieldAlert, Sparkles, Timer, QrCode, Upload, Camera, X, Link2 } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
+import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import { API, api, getRetryAfterSeconds } from "../lib/api";
 import { Button } from "../components/ui/button";
@@ -64,6 +65,8 @@ const riskConfig = {
 };
 
 function ChatTab() {
+  const { user } = useAuth();
+  const uid = user?.id || "";
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -92,7 +95,7 @@ function ChatTab() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ session_id: sessionId.current, message: msg }),
+        body: JSON.stringify({ session_id: sessionId.current, message: msg, user_id: uid }),
       });
       if (res.status === 429) {
         const secs = getRetryAfterSeconds(res);

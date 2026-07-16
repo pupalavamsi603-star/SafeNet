@@ -26,7 +26,7 @@ export default function Login() {
       const { data } = await api.post("/auth/login", form);
       setUser(data);
       toast.success(`Welcome back, ${data.name}!`);
-      navigate(data.role === "admin" ? "/admin" : "/");
+      navigate(data.role === "admin" ? "/admin" : "/dashboard");
     } catch (err) {
       setError(formatApiErrorDetail(err.response?.data?.detail));
     } finally {

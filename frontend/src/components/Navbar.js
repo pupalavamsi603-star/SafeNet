@@ -75,9 +75,12 @@ export const Navbar = () => {
               <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/dashboard")} data-testid="dashboard-menu-item">
+                  <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
+                </DropdownMenuItem>
                 {user.role === "admin" && (
                   <DropdownMenuItem onClick={() => navigate("/admin")} data-testid="admin-dashboard-menu-item">
-                    <LayoutDashboard className="w-4 h-4 mr-2" /> Admin Dashboard
+                    <LayoutDashboard className="w-4 h-4 mr-2" /> Admin Panel
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem onClick={logout} data-testid="logout-menu-item">

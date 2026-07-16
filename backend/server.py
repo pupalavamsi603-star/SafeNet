@@ -173,6 +173,7 @@ class ReportInput(BaseModel):
     screenshot: str = ""
     reporter_name: str = ""
     reporter_email: str = ""
+    user_id: str = ""
 
 class ContactInput(BaseModel):
     name: str = Field(min_length=2, max_length=60)
@@ -183,12 +184,15 @@ class ContactInput(BaseModel):
 class ChatInput(BaseModel):
     session_id: str
     message: str = Field(min_length=1, max_length=4000)
+    user_id: str = ""
 
 class DetectInput(BaseModel):
     message: str = Field(min_length=5, max_length=6000)
+    user_id: str = ""
 
 class QRScanInput(BaseModel):
     content: str = Field(min_length=1, max_length=6000)
+    user_id: str = ""
 
 class GoogleAuthInput(BaseModel):
     credential: str = Field(min_length=20)
@@ -197,6 +201,23 @@ class QuizSubmitInput(BaseModel):
     name: str = ""
     score: int
     total: int
+    user_id: str = ""
+
+class ReportInput(BaseModel):
+    scam_category: str
+    description: str = Field(min_length=10, max_length=5000)
+    scammer_phone: str = ""
+    scammer_url: str = ""
+    amount_lost: str = ""
+    screenshot: str = ""
+    reporter_name: str = ""
+    reporter_email: str = ""
+    user_id: str = ""
+
+class ChatInput(BaseModel):
+    session_id: str
+    message: str = Field(min_length=1, max_length=4000)
+    user_id: str = ""
 
 
 # ---------- auth routes ----------
@@ -303,7 +324,7 @@ async def quiz_questions():
 
 @api_router.post("/quiz/submit")
 async def quiz_submit(data: QuizSubmitInput):
-    doc = {"id": str(uuid.uuid4()), "name": data.name, "score": data.score, "total": data.total, "created_at": now_iso()}
+    doc = {"id": str(uuid.uuid4()), "name": data.name, "score": data.score, "total": data.total, "user_id": data.user_id, "created_at": now_iso()}
     await db.quiz_results.insert_one({**doc})
     return doc
 
@@ -371,7 +392,7 @@ async def ai_chat(data: ChatInput, _=Depends(ai_chat_limiter)):
     context = ""
     if history:
         context = "Previous conversation:\n" + "\n".join(f"{m['role']}: {m['content'][:500]}" for m in history) + "\n\nUser's new message: "
-    await db.chat_messages.insert_one({"id": str(uuid.uuid4()), "session_id": data.session_id, "role": "user", "content": data.message, "created_at": now_iso()})
+    await db.chat_messages.insert_one({"id": str(uuid.uuid4()), "session_id": data.session_id, "user_id": data.user_id, "role": "user", "content": data.message, "created_at": now_iso()})
 
     async def gen():
         full = ""
@@ -427,7 +448,7 @@ async def ai_detect(data: DetectInput, _=Depends(ai_detect_limiter)):
             if text.startswith("json"):
                 text = text[4:]
         parsed = jsonlib.loads(text.strip())
-        await db.detections.insert_one({"id": str(uuid.uuid4()), "message": data.message[:1000], "result": parsed, "created_at": now_iso()})
+        await db.detections.insert_one({"id": str(uuid.uuid4()), "message": data.message[:1000], "user_id": data.user_id, "result": parsed, "created_at": now_iso()})
         return parsed
     except Exception as e:
         logger.error(f"AI detect error: {e}")
@@ -502,11 +523,68 @@ async def ai_qr(data: QRScanInput, _=Depends(ai_qr_limiter)):
         for f in local_flags:
             if f.lower() not in existing:
                 parsed.setdefault("red_flags", []).append(f)
-        await db.qr_scans.insert_one({"id": str(uuid.uuid4()), "content": data.content[:1000], "result": parsed, "created_at": now_iso()})
+        await db.qr_scans.insert_one({"id": str(uuid.uuid4()), "content": data.content[:1000], "user_id": data.user_id, "result": parsed, "created_at": now_iso()})
         return parsed
     except Exception as e:
         logger.error(f"AI QR error: {e}")
         raise HTTPException(status_code=502, detail="QR analysis failed. Please try again.")
+
+
+# ---------- user dashboard ----------
+
+def _user_prefix(user_id: str, user: dict):
+    return {"user_id": user_id} if user_id else {}
+
+@api_router.get("/user/stats")
+async def user_stats(user: dict = Depends(get_current_user)):
+    uid = user["id"]
+    detections = await db.detections.count_documents({"user_id": uid})
+    quizzes = await db.quiz_results.count_documents({"user_id": uid})
+    reports = await db.reports.count_documents({"user_id": uid})
+    qr_scans = await db.qr_scans.count_documents({"user_id": uid})
+    chats = await db.chat_messages.count_documents({"user_id": uid, "role": "user"})
+    return {
+        "name": user.get("name", ""),
+        "email": user.get("email", ""),
+        "member_since": user.get("created_at", ""),
+        "detections": detections,
+        "quizzes": quizzes,
+        "reports": reports,
+        "qr_scans": qr_scans,
+        "chat_sessions": chats,
+        "total_activity": detections + quizzes + reports + qr_scans,
+    }
+
+@api_router.get("/user/activity")
+async def user_activity(user: dict = Depends(get_current_user)):
+    uid = user["id"]
+    activities = []
+    async for d in db.detections.find({"user_id": uid}, {"_id": 0}).sort("created_at", -1).limit(10):
+        risk = d.get("result", {}).get("risk_level", "")
+        activities.append({"type": "detect", "title": f"Scam detection — {risk}", "subtitle": risk, "timestamp": d["created_at"], "id": d["id"]})
+    async for r in db.reports.find({"user_id": uid}, {"_id": 0}).sort("created_at", -1).limit(10):
+        activities.append({"type": "report", "title": f"Report filed — {r.get('scam_category', 'Other')}", "subtitle": r.get("status", ""), "timestamp": r["created_at"], "id": r["id"]})
+    async for q in db.quiz_results.find({"user_id": uid}, {"_id": 0}).sort("created_at", -1).limit(10):
+        activities.append({"type": "quiz", "title": f"Quiz: {q.get('score', 0)}/{q.get('total', 0)}", "subtitle": f"{q.get('score', 0)}/{q.get('total', 0)}", "timestamp": q["created_at"], "id": q["id"]})
+    async for s in db.qr_scans.find({"user_id": uid}, {"_id": 0}).sort("created_at", -1).limit(10):
+        risk = s.get("result", {}).get("risk_level", "")
+        activities.append({"type": "qr", "title": f"QR scan — {risk}", "subtitle": risk, "timestamp": s["created_at"], "id": s["id"]})
+    activities.sort(key=lambda a: a["timestamp"], reverse=True)
+    return activities[:20]
+
+@api_router.get("/user/chat-sessions")
+async def user_chat_sessions(user: dict = Depends(get_current_user)):
+    uid = user["id"]
+    pipeline = [
+        {"$match": {"user_id": uid}},
+        {"$sort": {"created_at": -1}},
+        {"$group": {"_id": "$session_id", "session_id": {"$first": "$session_id"}, "last_message": {"$first": "$content"}, "updated_at": {"$first": "$created_at"}, "message_count": {"$sum": 1}}},
+        {"$sort": {"updated_at": -1}},
+        {"$limit": 10},
+        {"$project": {"_id": 0, "session_id": 1, "last_message": 1, "message_count": 1, "updated_at": 1}},
+    ]
+    sessions = await db.chat_messages.aggregate(pipeline).to_list(10)
+    return sessions
 
 
 # ---------- admin ----------
