@@ -18,15 +18,15 @@ from fastapi.responses import StreamingResponse
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
-from google import genai as google_genai
-from google.genai import types as genai_types
+import openai
 from seed_data import SCAM_TYPES, SAFETY_TIPS, QUIZ_QUESTIONS, BLOG_POSTS
 
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-GEMINI_API_KEY = os.environ['GEMINI_API_KEY']
+OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
+OPENROUTER_MODEL = os.environ.get('OPENROUTER_MODEL', 'openai/gpt-4o-mini')
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
@@ -375,18 +375,23 @@ async def ai_chat(data: ChatInput, _=Depends(ai_chat_limiter)):
 
     async def gen():
         full = ""
-        ai_client = google_genai.Client(api_key=GEMINI_API_KEY)
-        for model in ("gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-3-flash-preview"):
+        ai_client = openai.AsyncOpenAI(api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/v1")
+        for model in (OPENROUTER_MODEL,):
             try:
-                response = ai_client.models.generate_content_stream(
+                msgs = [{"role": "system", "content": CHAT_SYSTEM}]
+                if context:
+                    msgs.append({"role": "user", "content": context})
+                msgs.append({"role": "user", "content": data.message})
+                stream = await ai_client.chat.completions.create(
                     model=model,
-                    contents=context + data.message,
-                    config=genai_types.GenerateContentConfig(system_instruction=CHAT_SYSTEM),
+                    messages=msgs,
+                    stream=True,
                 )
-                for chunk in response:
-                    if chunk.text:
-                        full += chunk.text
-                        yield chunk.text
+                async for chunk in stream:
+                    text = chunk.choices[0].delta.content or ""
+                    if text:
+                        full += text
+                        yield text
                 break
             except Exception as e:
                 logger.error(f"AI chat error ({model}): {e}")
@@ -407,27 +412,26 @@ async def chat_history(session_id: str):
 @api_router.post("/ai/detect")
 async def ai_detect(data: DetectInput, _=Depends(ai_detect_limiter)):
     import json as jsonlib
-    ai_client = google_genai.Client(api_key=GEMINI_API_KEY)
-    last_error = None
-    for model in ("gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-3-flash-preview"):
-        try:
-            response = ai_client.models.generate_content(
-                model=model,
-                contents=f"Analyze this message for scam indicators:\n\n{data.message}",
-                config=genai_types.GenerateContentConfig(system_instruction=DETECT_SYSTEM),
-            )
-            text = response.text.strip()
-            if text.startswith("```"):
-                text = text.split("```")[1]
-                if text.startswith("json"):
-                    text = text[4:]
-            parsed = jsonlib.loads(text.strip())
-            await db.detections.insert_one({"id": str(uuid.uuid4()), "message": data.message[:1000], "result": parsed, "created_at": now_iso()})
-            return parsed
-        except Exception as e:
-            last_error = e
-            logger.error(f"AI detect error ({model}): {e}")
-    raise HTTPException(status_code=502, detail="Scam analysis failed. Please try again.")
+    ai_client = openai.AsyncOpenAI(api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/v1")
+    try:
+        response = await ai_client.chat.completions.create(
+            model=OPENROUTER_MODEL,
+            messages=[
+                {"role": "system", "content": DETECT_SYSTEM},
+                {"role": "user", "content": f"Analyze this message for scam indicators:\n\n{data.message}"},
+            ],
+        )
+        text = response.choices[0].message.content.strip()
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        parsed = jsonlib.loads(text.strip())
+        await db.detections.insert_one({"id": str(uuid.uuid4()), "message": data.message[:1000], "result": parsed, "created_at": now_iso()})
+        return parsed
+    except Exception as e:
+        logger.error(f"AI detect error: {e}")
+        raise HTTPException(status_code=502, detail="Scam analysis failed. Please try again.")
 
 
 # ---------- QR scan analysis ----------
@@ -479,31 +483,30 @@ def qr_heuristics(content: str) -> list:
 async def ai_qr(data: QRScanInput, _=Depends(ai_qr_limiter)):
     import json as jsonlib
     local_flags = qr_heuristics(data.content)
-    ai_client = google_genai.Client(api_key=GEMINI_API_KEY)
-    for model in ("gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-3-flash-preview"):
-        try:
-            hint = ("\n\nLocal heuristic checks already flagged: " + "; ".join(local_flags)) if local_flags else ""
-            response = ai_client.models.generate_content(
-                model=model,
-                contents=f"Analyze this decoded QR code content for scam indicators:\n\n{data.content}{hint}",
-                config=genai_types.GenerateContentConfig(system_instruction=QR_SYSTEM),
-            )
-            text = response.text.strip()
-            if text.startswith("```"):
-                text = text.split("```")[1]
-                if text.startswith("json"):
-                    text = text[4:]
-            parsed = jsonlib.loads(text.strip())
-            # merge local heuristic flags the AI may have missed
-            existing = {f.lower() for f in parsed.get("red_flags", [])}
-            for f in local_flags:
-                if f.lower() not in existing:
-                    parsed.setdefault("red_flags", []).append(f)
-            await db.qr_scans.insert_one({"id": str(uuid.uuid4()), "content": data.content[:1000], "result": parsed, "created_at": now_iso()})
-            return parsed
-        except Exception as e:
-            logger.error(f"AI QR error ({model}): {e}")
-    raise HTTPException(status_code=502, detail="QR analysis failed. Please try again.")
+    ai_client = openai.AsyncOpenAI(api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/v1")
+    try:
+        hint = ("\n\nLocal heuristic checks already flagged: " + "; ".join(local_flags)) if local_flags else ""
+        messages = [
+            {"role": "system", "content": QR_SYSTEM},
+            {"role": "user", "content": f"Analyze this decoded QR code content for scam indicators:\n\n{data.content}{hint}"},
+        ]
+        response = await ai_client.chat.completions.create(model=OPENROUTER_MODEL, messages=messages)
+        text = response.choices[0].message.content.strip()
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        parsed = jsonlib.loads(text.strip())
+        # merge local heuristic flags the AI may have missed
+        existing = {f.lower() for f in parsed.get("red_flags", [])}
+        for f in local_flags:
+            if f.lower() not in existing:
+                parsed.setdefault("red_flags", []).append(f)
+        await db.qr_scans.insert_one({"id": str(uuid.uuid4()), "content": data.content[:1000], "result": parsed, "created_at": now_iso()})
+        return parsed
+    except Exception as e:
+        logger.error(f"AI QR error: {e}")
+        raise HTTPException(status_code=502, detail="QR analysis failed. Please try again.")
 
 
 # ---------- admin ----------
