@@ -41,8 +41,12 @@ code {
         --input: 214 32% 85%;
         --ring: 217 91% 60%;
         --radius: 0.5rem;
+        --starfield-panel: 255,255,255;
+        --starfield-form: 148,163,184;
     }
     .dark {
+        --starfield-panel: 255,255,255;
+        --starfield-form: 56,189,248;
         --background: 222 84% 3%;
         --foreground: 210 40% 98%;
         --card: 222 47% 7%;

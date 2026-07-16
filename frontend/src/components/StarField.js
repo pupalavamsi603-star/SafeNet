@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 // Canvas starfield: twinkling stars with cursor parallax + a local "aura" —
 // stars near the pointer brighten and are gently pushed, so the field
 // visibly reacts as the cursor moves. Pointer-events: none.
-export function StarField({ density = 110, color = "255, 255, 255" }) {
+export function StarField({ density = 110, color = "255, 255, 255", useVar }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -59,6 +59,10 @@ export function StarField({ density = 110, color = "255, 255, 255" }) {
     const draw = () => {
       current.x += (target.x - current.x) * 0.08;
       current.y += (target.y - current.y) * 0.08;
+      // resolve CSS variable colour every frame so it transitions with the theme
+      const c = useVar
+        ? getComputedStyle(document.documentElement).getPropertyValue(color.replace(/^var\(|\)$/g, "")).trim() || "255,255,255"
+        : color;
       ctx.clearRect(0, 0, w, h);
       for (const s of stars) {
         s.tw += s.tws;
@@ -95,13 +99,13 @@ export function StarField({ density = 110, color = "255, 255, 255" }) {
         const radius = s.r * (1 + boost * 0.9);
         ctx.beginPath();
         ctx.arc(px, py, radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${color}, ${alpha.toFixed(3)})`;
+        ctx.fillStyle = `rgba(${c}, ${alpha.toFixed(3)})`;
         ctx.fill();
         // glow on bright/near-cursor stars
         if (boost > 0.15 || (s.depth > 0.75 && s.r > 1)) {
           ctx.beginPath();
           ctx.arc(px, py, radius * 3, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${color}, ${(alpha * (0.1 + boost * 0.15)).toFixed(3)})`;
+          ctx.fillStyle = `rgba(${c}, ${(alpha * (0.1 + boost * 0.15)).toFixed(3)})`;
           ctx.fill();
         }
       }

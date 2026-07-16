@@ -22,7 +22,7 @@ export function AuthLayout({ children, testId }) {
           />
         </div>
         {/* cursor-following starfield */}
-        <StarField density={150} />
+        <StarField density={150} color="var(--starfield-panel)" useVar />
 
         <Link to="/" className="relative flex items-center gap-2.5 w-fit">
           <Shield className="w-7 h-7 text-sky-400" strokeWidth={1.5} />
@@ -55,11 +55,9 @@ export function AuthLayout({ children, testId }) {
         <p className="relative text-xs text-slate-500">© {new Date().getFullYear()} SafeNet — Cyber safety for everyone.</p>
       </div>
 
-      {/* Form panel — subtle starfield in dark mode only */}
+      {/* Form panel */}
       <div className="relative flex items-center justify-center px-4 sm:px-8 py-14 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none hidden dark:block">
-          <StarField density={70} color="147, 197, 253" />
-        </div>
+        <StarField density={70} color="var(--starfield-form)" useVar />
         <div className="relative w-full max-w-[400px]">{children}</div>
       </div>
     </div>
