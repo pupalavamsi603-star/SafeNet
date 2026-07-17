@@ -14,10 +14,10 @@ import { api, formatApiErrorDetail } from "../lib/api";
 const HERO_IMG = "https://images.unsplash.com/photo-1750969185331-e03829f72c7d?crop=entropy&cs=srgb&fm=jpg&q=85&w=1800";
 
 const features = [
-  { icon: ScanSearch, title: "AI Scam Detection", desc: "Paste any suspicious message and our AI instantly rates its risk, exposes red flags, and tells you what to do.", to: "/ai", span: "md:col-span-7", accent: "text-red-500", testid: "feature-card-detection" },
-  { icon: Bot, title: "AI Assistant", desc: "Ask anything about online safety — SafeBot answers in plain language, 24/7.", to: "/ai", span: "md:col-span-5", accent: "text-sky-500", testid: "feature-card-assistant" },
-  { icon: BookOpenCheck, title: "Cyber Safety Tips", desc: "10 essential defense habits — passwords, 2FA, banking, Wi-Fi and more.", to: "/tips", span: "md:col-span-5", accent: "text-emerald-500", testid: "feature-card-tips" },
-  { icon: GraduationCap, title: "Cyber Safety Quiz", desc: "Test your scam-spotting skills with 15 real-world scenarios and earn your certificate.", to: "/quiz", span: "md:col-span-7", accent: "text-amber-500", testid: "feature-card-quiz" },
+  { icon: ScanSearch, title: "AI Scam Detection", desc: "Paste any suspicious message and our AI instantly rates its risk, exposes red flags, and tells you what to do.", to: "/ai", span: "md:col-span-7", accent: "text-red-500", chip: "bg-red-500/10", testid: "feature-card-detection" },
+  { icon: Bot, title: "AI Assistant", desc: "Ask anything about online safety — SafeBot answers in plain language, 24/7.", to: "/ai", span: "md:col-span-5", accent: "text-sky-500", chip: "bg-sky-500/10", testid: "feature-card-assistant" },
+  { icon: BookOpenCheck, title: "Cyber Safety Tips", desc: "10 essential defense habits — passwords, 2FA, banking, Wi-Fi and more.", to: "/tips", span: "md:col-span-5", accent: "text-emerald-500", chip: "bg-emerald-500/10", testid: "feature-card-tips" },
+  { icon: GraduationCap, title: "Cyber Safety Quiz", desc: "Test your scam-spotting skills with 15 real-world scenarios and earn your certificate.", to: "/quiz", span: "md:col-span-7", accent: "text-amber-500", chip: "bg-amber-500/10", testid: "feature-card-quiz" },
 ];
 
 const stats = [
@@ -38,9 +38,9 @@ const faqs = [
 const fadeUp = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0 } };
 
 const riskCfg = {
-  safe: { color: "text-emerald-500", bg: "bg-emerald-500/10 border-emerald-500/30", bar: "bg-emerald-500", icon: ShieldCheck, label: "Looks Safe" },
-  suspicious: { color: "text-amber-500", bg: "bg-amber-500/10 border-amber-500/30", bar: "bg-amber-500", icon: AlertTriangle, label: "Suspicious" },
-  dangerous: { color: "text-red-500", bg: "bg-red-500/10 border-red-500/30", bar: "bg-red-500", icon: ShieldAlert, label: "Dangerous" },
+  safe: { color: "text-emerald-500", bg: "bg-emerald-500/10 border-emerald-500/30", bar: "bg-emerald-500", ring: "#10b981", icon: ShieldCheck, label: "Looks Safe" },
+  suspicious: { color: "text-amber-500", bg: "bg-amber-500/10 border-amber-500/30", bar: "bg-amber-500", ring: "#f59e0b", icon: AlertTriangle, label: "Suspicious" },
+  dangerous: { color: "text-red-500", bg: "bg-red-500/10 border-red-500/30", bar: "bg-red-500", ring: "#ef4444", icon: ShieldAlert, label: "Dangerous" },
 };
 
 function URLTool() {
@@ -97,13 +97,15 @@ function URLTool() {
 
         <motion.div ref={resultRef} initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: 0.1 }}>
           {!result && !loading && (
-            <div className="rounded-xl border bg-card p-10 text-center">
-              <Globe className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" strokeWidth={1.2} />
+            <div className="rounded-xl border glass-panel p-10 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-sky-500/10 flex items-center justify-center mx-auto mb-4">
+                <Globe className="w-8 h-8 text-sky-500" strokeWidth={1.4} />
+              </div>
               <p className="text-sm text-muted-foreground">Enter a URL above and we'll check it for phishing, malware, or scam indicators — powered by AI.</p>
             </div>
           )}
           {loading && (
-            <div className="rounded-xl border bg-card p-10 text-center flex flex-col items-center gap-3">
+            <div className="rounded-xl border glass-panel p-10 text-center flex flex-col items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center">
                 <Loader2 className="w-6 h-6 animate-spin text-sky-500" />
               </div>
@@ -114,11 +116,14 @@ function URLTool() {
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border bg-card p-6 space-y-5">
               <div className="ai-glow-border p-[2px]">
                 <div className="rounded-[0.65rem] bg-card/95 backdrop-blur-sm p-5">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${cfg.bg}`}>
-                      <cfg.icon className={`w-6 h-6 ${cfg.color}`} strokeWidth={1.6} />
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-16 h-16 shrink-0">
+                      <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(${cfg.ring} ${result.risk_score}%, hsl(var(--secondary)) ${result.risk_score}%)` }} />
+                      <div className="absolute inset-[3px] rounded-full bg-card flex items-center justify-center">
+                        <cfg.icon className={`w-6 h-6 ${cfg.color}`} strokeWidth={1.6} />
+                      </div>
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <p className={`font-heading text-lg font-bold tracking-tight ${cfg.color}`}>{cfg.label}</p>
                       {result.scam_type && result.scam_type !== "None detected" && (
                         <p className="text-xs text-muted-foreground uppercase tracking-wider mt-0.5">{result.scam_type}</p>
@@ -256,9 +261,11 @@ export default function Home() {
               <Link
                 to={f.to}
                 data-testid={f.testid}
-                className="group block h-full rounded-xl border bg-card p-8 hover:border-sky-500/50 transition-colors duration-300"
+                className="group block h-full rounded-xl border bg-card p-8 hover:border-sky-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
               >
-                <f.icon className={`w-9 h-9 ${f.accent}`} strokeWidth={1.5} />
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${f.chip}`}>
+                  <f.icon className={`w-7 h-7 ${f.accent}`} strokeWidth={1.5} />
+                </div>
                 <h3 className="font-heading text-lg font-semibold mt-5 tracking-tight">{f.title}</h3>
                 <p className="text-sm text-muted-foreground mt-2.5 leading-relaxed">{f.desc}</p>
                 <span className="inline-flex items-center gap-1 text-sm text-sky-500 mt-5 group-hover:gap-2.5 transition-[gap] duration-300">
