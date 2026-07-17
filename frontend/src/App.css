@@ -73,8 +73,48 @@
 .typing-dot:nth-child(2) { animation-delay: 0.2s; }
 .typing-dot:nth-child(3) { animation-delay: 0.4s; }
 
+/* Animated multi-color glow border, inspired by Gemini's AI accent bar */
+@keyframes ai-glow-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes ai-glow-shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.ai-glow-border {
+  position: relative;
+  isolation: isolate;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+.ai-glow-border::before {
+  content: "";
+  position: absolute;
+  inset: -60%;
+  z-index: -1;
+  background: conic-gradient(from 0deg, #4285f4, #9b72cb, #d96570, #f2a600, #34a853, #4285f4);
+  animation: ai-glow-spin 6s linear infinite;
+  filter: blur(2px);
+  opacity: 0.9;
+}
+.ai-glow-border::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  z-index: -1;
+  border-radius: 0.65rem;
+  background: hsl(var(--card));
+}
+.ai-glow-bar {
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4285f4, #9b72cb, #d96570, #f2a600, #34a853, #4285f4);
+  background-size: 200% 100%;
+  animation: ai-glow-shimmer 3s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .pulse-ring, .scan-line, .float-slow, .typing-dot {
+  .pulse-ring, .scan-line, .float-slow, .typing-dot, .ai-glow-border::before, .ai-glow-bar {
     animation: none;
   }
 }

@@ -112,19 +112,23 @@ function URLTool() {
           )}
           {result && cfg && (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border bg-card p-6 space-y-5">
-              <div className={`rounded-xl border p-5 ${cfg.bg}`}>
-                <div className="flex items-center gap-3">
-                  <cfg.icon className={`w-8 h-8 ${cfg.color}`} strokeWidth={1.6} />
-                  <div>
-                    <p className={`font-heading text-lg font-bold tracking-tight ${cfg.color}`}>{cfg.label}</p>
-                    {result.scam_type && result.scam_type !== "None detected" && (
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider mt-0.5">{result.scam_type}</p>
-                    )}
+              <div className="ai-glow-border p-[2px]">
+                <div className="rounded-[0.65rem] bg-card/95 backdrop-blur-sm p-5">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${cfg.bg}`}>
+                      <cfg.icon className={`w-6 h-6 ${cfg.color}`} strokeWidth={1.6} />
+                    </div>
+                    <div>
+                      <p className={`font-heading text-lg font-bold tracking-tight ${cfg.color}`}>{cfg.label}</p>
+                      {result.scam_type && result.scam_type !== "None detected" && (
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider mt-0.5">{result.scam_type}</p>
+                      )}
+                    </div>
+                    <span className={`ml-auto font-heading text-2xl font-bold ${cfg.color}`}>{result.risk_score}<span className="text-sm">/100</span></span>
                   </div>
-                  <span className={`ml-auto font-heading text-2xl font-bold ${cfg.color}`}>{result.risk_score}<span className="text-sm">/100</span></span>
-                </div>
-                <div className="mt-4 h-2 rounded-full bg-secondary overflow-hidden">
-                  <motion.div className={`h-full rounded-full ${cfg.bar}`} initial={{ width: 0 }} animate={{ width: `${result.risk_score}%` }} transition={{ duration: 0.8, ease: "easeOut" }} />
+                  <div className="mt-4 h-2 rounded-full bg-secondary overflow-hidden">
+                    <motion.div className={`h-full rounded-full ${cfg.bar}`} initial={{ width: 0 }} animate={{ width: `${result.risk_score}%` }} transition={{ duration: 0.8, ease: "easeOut" }} />
+                  </div>
                 </div>
               </div>
               {result.explanation && <p className="text-sm leading-relaxed">{result.explanation}</p>}
