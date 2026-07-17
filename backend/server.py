@@ -249,11 +249,18 @@ async def google_auth(data: GoogleAuthInput, response: Response, _=Depends(auth_
     if not GOOGLE_CLIENT_ID:
         raise HTTPException(status_code=503, detail="Google sign-in is not configured on the server")
     import httpx
-    async with httpx.AsyncClient(timeout=10) as hc:
-        resp = await hc.get("https://oauth2.googleapis.com/tokeninfo", params={"id_token": data.credential})
+    try:
+        async with httpx.AsyncClient(timeout=10) as hc:
+            resp = await hc.get("https://oauth2.googleapis.com/tokeninfo", params={"id_token": data.credential})
+    except httpx.HTTPError as e:
+        logger.error(f"Google tokeninfo request failed: {e}")
+        raise HTTPException(status_code=502, detail="Could not reach Google to verify sign-in. Try again.")
     if resp.status_code != 200:
         raise HTTPException(status_code=401, detail="Invalid Google token")
-    info = resp.json()
+    try:
+        info = resp.json()
+    except ValueError:
+        raise HTTPException(status_code=502, detail="Unexpected response from Google. Try again.")
     if info.get("aud") != GOOGLE_CLIENT_ID:
         raise HTTPException(status_code=401, detail="Google token audience mismatch")
     if info.get("email_verified") not in (True, "true"):
@@ -808,9 +815,17 @@ app.include_router(api_router)
 _cors_origins = os.environ.get('CORS_ORIGINS', '').strip()
 _allowed_origins = [o.strip().rstrip('/') for o in _cors_origins.split(',') if o.strip()] or ["http://localhost:3000"]
 
+# Vercel generates a different *.vercel.app URL for every branch/preview deployment
+# (e.g. safe-net-git-main-vamsi13.vercel.app, safe-6kge5vkpk-vamsi13.vercel.app).
+# Exact-matching CORS_ORIGINS breaks every time that URL changes, so also allow any
+# deployment URL under this Vercel project/team via regex, in addition to the
+# explicit list above (custom domains, localhost, etc.).
+_vercel_origin_regex = r"^https://safe(-[a-z0-9]+)*-vamsi13\.vercel\.app$"
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
+    allow_origin_regex=_vercel_origin_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
