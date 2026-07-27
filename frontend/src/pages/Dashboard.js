@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Shield, Bot, ScanSearch, QrCode, GraduationCap, AlertTriangle, Flag, Clock, ChevronRight, Sparkles, Loader2, User, TrendingUp, FileText, Activity, Quote, Zap, ArrowRight } from "lucide-react";
 import { api } from "../lib/api";
@@ -15,6 +15,175 @@ const quickActions = [
   { icon: QrCode, label: "QR Scanner", desc: "Check QR codes before scanning", to: "/ai?tab=qr", gradient: "from-violet-500 to-purple-600" },
   { icon: GraduationCap, label: "Take Quiz", desc: "Test your cybersecurity knowledge", to: "/quiz", gradient: "from-emerald-500 to-teal-600" },
 ];
+
+function KineticGridBackground() {
+  const hostRef = useRef(null);
+  const canvasRef = useRef(null);
+  const mouseRef = useRef({ x: -9999, y: -9999, active: false });
+  const trailRef = useRef([]);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!host || !canvas || !ctx) return;
+
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const gap = 34;
+    const radius = 300;
+    const pull = 1.25;
+    let width = 1;
+    let height = 1;
+    let raf = 0;
+    let dots = [];
+    let cols = [];
+
+    const build = () => {
+      const rect = host.getBoundingClientRect();
+      width = Math.max(1, Math.floor(rect.width));
+      height = Math.max(1, Math.floor(rect.height));
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      cols = [];
+      dots = [];
+      const colCount = Math.floor(width / gap) + 2;
+      const rowCount = Math.floor(height / gap) + 2;
+      for (let c = 0; c < colCount; c += 1) {
+        const col = [];
+        for (let r = 0; r < rowCount; r += 1) {
+          const dot = { hx: c * gap, hy: r * gap, x: c * gap, y: r * gap, vx: 0, vy: 0 };
+          col.push(dot);
+          dots.push(dot);
+        }
+        cols.push(col);
+      }
+    };
+
+    const setMouse = (clientX, clientY) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current = { x: clientX - rect.left, y: clientY - rect.top, active: true };
+      trailRef.current.push({ x: mouseRef.current.x, y: mouseRef.current.y, t: performance.now() });
+      if (trailRef.current.length > 60) trailRef.current.shift();
+    };
+
+    const draw = () => {
+      const mouse = mouseRef.current;
+      ctx.clearRect(0, 0, width, height);
+
+      for (const dot of dots) {
+        let ax = (dot.hx - dot.x) * 0.075;
+        let ay = (dot.hy - dot.y) * 0.075;
+        if (!reducedMotion && mouse.active) {
+          const dx = mouse.x - dot.x;
+          const dy = mouse.y - dot.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < radius && dist > 0.001) {
+            const force = (1 - dist / radius) * pull;
+            ax += (dx / dist) * force;
+            ay += (dy / dist) * force;
+          }
+        }
+        dot.vx = (dot.vx + ax) * 0.82;
+        dot.vy = (dot.vy + ay) * 0.82;
+        dot.x += dot.vx;
+        dot.y += dot.vy;
+      }
+
+      for (let c = 0; c < cols.length; c += 1) {
+        for (let r = 0; r < cols[c].length; r += 1) {
+          const dot = cols[c][r];
+          const right = cols[c + 1]?.[r];
+          const down = cols[c]?.[r + 1];
+          const proximity = mouse.active
+            ? Math.max(0, 1 - Math.sqrt((mouse.x - dot.x) ** 2 + (mouse.y - dot.y) ** 2) / radius)
+            : 0;
+
+          ctx.strokeStyle = "#38bdf8";
+          ctx.lineWidth = 0.45 + proximity * 1.1;
+          ctx.globalAlpha = 0.035 + proximity * 0.26;
+
+          if (right) {
+            ctx.beginPath();
+            ctx.moveTo(dot.x, dot.y);
+            ctx.lineTo(right.x, right.y);
+            ctx.stroke();
+          }
+          if (down) {
+            ctx.beginPath();
+            ctx.moveTo(dot.x, dot.y);
+            ctx.lineTo(down.x, down.y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      for (const dot of dots) {
+        const proximity = mouse.active
+          ? Math.max(0, 1 - Math.sqrt((mouse.x - dot.x) ** 2 + (mouse.y - dot.y) ** 2) / radius)
+          : 0;
+        ctx.globalAlpha = 0.18 + proximity * 0.48;
+        ctx.fillStyle = "#e0f2fe";
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, 0.8 + proximity * 1.8, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+
+      if (!reducedMotion) {
+        const now = performance.now();
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        for (let i = 1; i < trailRef.current.length; i += 1) {
+          const a = trailRef.current[i - 1];
+          const b = trailRef.current[i];
+          const age = now - b.t;
+          if (age > 260) continue;
+          ctx.globalAlpha = Math.max(0, 1 - age / 260) * 0.5;
+          ctx.strokeStyle = "#0ea5e9";
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+
+      ctx.globalAlpha = 1;
+      raf = requestAnimationFrame(draw);
+    };
+
+    const onMove = (event) => setMouse(event.clientX, event.clientY);
+    const onLeave = () => {
+      mouseRef.current = { x: -9999, y: -9999, active: false };
+      trailRef.current = [];
+    };
+    const resizeObserver = new ResizeObserver(build);
+
+    build();
+    resizeObserver.observe(host);
+    window.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseleave", onLeave);
+    raf = requestAnimationFrame(draw);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      resizeObserver.disconnect();
+      window.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseleave", onLeave);
+    };
+  }, []);
+
+  return (
+    <div ref={hostRef} className="absolute inset-0 pointer-events-none" aria-hidden="true">
+      <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(14,165,233,0.16),transparent_34%),linear-gradient(180deg,rgba(2,6,23,0.10),rgba(2,6,23,0.36))]" />
+    </div>
+  );
+}
 
 function AnimatedCounter({ value, label, Icon, color }) {
   const [display, setDisplay] = useState(0);
@@ -77,11 +246,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-48 -left-48 w-[30rem] h-[30rem] rounded-full bg-sky-500/10 blur-3xl" />
-        <div className="absolute -bottom-48 -right-48 w-[30rem] h-[30rem] rounded-full bg-violet-600/10 blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40rem] h-[40rem] rounded-full bg-sky-400/5 blur-3xl" />
-      </div>
+      <KineticGridBackground />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-12 space-y-10">
         <div className="flex flex-col sm:flex-row sm:items-center gap-5">
