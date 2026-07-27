@@ -64,7 +64,7 @@
   },
   "scripts": {
     "start": "craco start",
-    "build": "CI=false DISABLE_ESLINT_PLUGIN=true craco build",
+    "build": "node scripts/build.js",
     "test": "craco test"
   },
   "browserslist": {

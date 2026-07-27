@@ -3,6 +3,12 @@ import { api } from "../lib/api";
 
 const AuthContext = createContext(null);
 
+function clearChatSessions() {
+  Object.keys(localStorage)
+    .filter((key) => key === "safenet-chat-session" || key.startsWith("safenet-chat-session:"))
+    .forEach((key) => localStorage.removeItem(key));
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -16,6 +22,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     try { await api.post("/auth/logout"); } catch (e) { /* ignore */ }
+    clearChatSessions();
     setUser(false);
   }, []);
 

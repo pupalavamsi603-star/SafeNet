@@ -17,11 +17,12 @@ const SUGGESTIONS = [
   "How can I tell if a shopping website is fake?",
 ];
 
-function getSessionId() {
-  let id = localStorage.getItem("safenet-chat-session");
+function getSessionId(userId) {
+  const key = `safenet-chat-session:${userId || "guest"}`;
+  let id = localStorage.getItem(key);
   if (!id) {
     id = `sess-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    localStorage.setItem("safenet-chat-session", id);
+    localStorage.setItem(key, id);
   }
   return id;
 }
@@ -72,13 +73,34 @@ function ChatTab() {
   const [streaming, setStreaming] = useState(false);
   const [cooldown, startCooldown] = useCooldown();
   const endRef = useRef(null);
-  const sessionId = useRef(getSessionId());
+  const [sessionId, setSessionId] = useState(() => getSessionId(uid));
+  const activeSessionRef = useRef(sessionId);
 
   useEffect(() => {
-    api.get(`/ai/chat/${sessionId.current}/history`)
-      .then((r) => setMessages(r.data.map((m) => ({ role: m.role, content: m.content }))))
+    activeSessionRef.current = sessionId;
+  }, [sessionId]);
+
+  useEffect(() => {
+    const nextSessionId = getSessionId(uid);
+    activeSessionRef.current = nextSessionId;
+    setSessionId(nextSessionId);
+    setMessages([]);
+    setInput("");
+    setStreaming(false);
+
+    let cancelled = false;
+    api.get(`/ai/chat/${nextSessionId}/history`)
+      .then((r) => {
+        if (!cancelled) {
+          setMessages(r.data.map((m) => ({ role: m.role, content: m.content })));
+        }
+      })
       .catch(() => {});
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [uid]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -87,6 +109,7 @@ function ChatTab() {
   const send = async (text) => {
     const msg = (text || input).trim();
     if (!msg || streaming || cooldown) return;
+    const activeSessionId = sessionId;
     setInput("");
     setMessages((m) => [...m, { role: "user", content: msg }, { role: "assistant", content: "" }]);
     setStreaming(true);
@@ -95,13 +118,15 @@ function ChatTab() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ session_id: sessionId.current, message: msg, user_id: uid }),
+        body: JSON.stringify({ session_id: activeSessionId, message: msg, user_id: uid }),
       });
       if (res.status === 429) {
         const secs = getRetryAfterSeconds(res);
         startCooldown(secs);
-        setMessages((m) => m.slice(0, -2)); // drop the optimistic user + empty assistant bubbles
-        setInput(msg); // give the user their message back
+        if (activeSessionRef.current === activeSessionId) {
+          setMessages((m) => m.slice(0, -2)); // drop the optimistic user + empty assistant bubbles
+          setInput(msg); // give the user their message back
+        }
         toast.warning(`You're sending messages too fast — try again in ${secs}s.`);
         return;
       }
@@ -113,6 +138,7 @@ function ChatTab() {
         if (done) break;
         const chunk = decoder.decode(value, { stream: true });
         setMessages((m) => {
+          if (activeSessionRef.current !== activeSessionId) return m;
           const copy = [...m];
           copy[copy.length - 1] = { ...copy[copy.length - 1], content: copy[copy.length - 1].content + chunk };
           return copy;
@@ -120,13 +146,16 @@ function ChatTab() {
       }
     } catch (e) {
       setMessages((m) => {
+        if (activeSessionRef.current !== activeSessionId) return m;
         const copy = [...m];
         copy[copy.length - 1] = { role: "assistant", content: "Sorry, I couldn't respond right now. Please try again." };
         return copy;
       });
       toast.error("AI chat failed. Please try again.");
     } finally {
-      setStreaming(false);
+      if (activeSessionRef.current === activeSessionId) {
+        setStreaming(false);
+      }
     }
   };
 

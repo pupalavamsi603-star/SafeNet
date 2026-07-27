@@ -98,6 +98,13 @@ let webpackConfig = {
         ],
       };
 
+      webpackConfig.ignoreWarnings = [
+        ...(webpackConfig.ignoreWarnings || []),
+        (warning) =>
+          warning.message?.includes("Failed to parse source map") &&
+          warning.module?.resource?.includes("html5-qrcode"),
+      ];
+
       // Add health check plugin to webpack if enabled
       if (config.enableHealthCheck && healthPluginInstance) {
         webpackConfig.plugins.push(healthPluginInstance);
