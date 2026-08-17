@@ -11,6 +11,10 @@ services:
         sync: false
       - key: DB_NAME
         value: safenet
+      # Drives Secure/SameSite=None on auth cookies. Previously inferred by
+      # sniffing CORS_ORIGINS for "https://"; that fallback still works.
+      - key: ENVIRONMENT
+        value: production
       - key: OPENROUTER_API_KEY
         sync: false
       - key: OPENROUTER_MODEL

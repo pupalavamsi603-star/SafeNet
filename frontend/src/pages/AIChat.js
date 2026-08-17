@@ -17,11 +17,23 @@ const SUGGESTIONS = [
   "How can I tell if a shopping website is fake?",
 ];
 
-function getSessionId(userId) {
-  const key = `safenet-chat-session:${userId || "guest"}`;
+const sessionKey = (userId) => `safenet-chat-session:${userId || "guest"}`;
+
+function newSessionId() {
+  return `sess-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+// `override` comes from ?session=... (e.g. resuming a chat from the Dashboard);
+// resuming makes that conversation the active one for this account.
+function getSessionId(userId, override) {
+  const key = sessionKey(userId);
+  if (override) {
+    localStorage.setItem(key, override);
+    return override;
+  }
   let id = localStorage.getItem(key);
   if (!id) {
-    id = `sess-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    id = newSessionId();
     localStorage.setItem(key, id);
   }
   return id;
@@ -65,7 +77,7 @@ const riskConfig = {
   dangerous: { color: "text-red-500", bg: "bg-red-500/10 border-red-500/30", bar: "bg-red-500", icon: ShieldAlert, label: "Dangerous" },
 };
 
-function ChatTab() {
+function ChatTab({ resumeSession }) {
   const { user } = useAuth();
   const uid = user?.id || "";
   const [messages, setMessages] = useState([]);
@@ -73,7 +85,7 @@ function ChatTab() {
   const [streaming, setStreaming] = useState(false);
   const [cooldown, startCooldown] = useCooldown();
   const endRef = useRef(null);
-  const [sessionId, setSessionId] = useState(() => getSessionId(uid));
+  const [sessionId, setSessionId] = useState(() => getSessionId(uid, resumeSession));
   const activeSessionRef = useRef(sessionId);
 
   useEffect(() => {
@@ -81,7 +93,7 @@ function ChatTab() {
   }, [sessionId]);
 
   useEffect(() => {
-    const nextSessionId = getSessionId(uid);
+    const nextSessionId = getSessionId(uid, resumeSession);
     activeSessionRef.current = nextSessionId;
     setSessionId(nextSessionId);
     setMessages([]);
@@ -95,12 +107,23 @@ function ChatTab() {
           setMessages(r.data.map((m) => ({ role: m.role, content: m.content })));
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (cancelled) return;
+        // 403 = this session belongs to another account (e.g. a stale id left in
+        // localStorage after switching users). Start a clean one instead of
+        // leaving the user on a session every send will reject.
+        if (err.response?.status === 403) {
+          const fresh = newSessionId();
+          localStorage.setItem(sessionKey(uid), fresh);
+          activeSessionRef.current = fresh;
+          setSessionId(fresh);
+        }
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [uid]);
+  }, [uid, resumeSession]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -114,12 +137,24 @@ function ChatTab() {
     setMessages((m) => [...m, { role: "user", content: msg }, { role: "assistant", content: "" }]);
     setStreaming(true);
     try {
-      const res = await fetch(`${API}/ai/chat`, {
+      // Streaming needs raw fetch, so the axios refresh-on-401 interceptor does
+      // not apply here — refresh and retry once by hand.
+      const post = () => fetch(`${API}/ai/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ session_id: activeSessionId, message: msg, user_id: uid }),
+        // user_id is intentionally not sent — the server derives it from the auth cookie.
+        body: JSON.stringify({ session_id: activeSessionId, message: msg }),
       });
+      let res = await post();
+      if (res.status === 401) {
+        try {
+          await api.post("/auth/refresh");
+          res = await post();
+        } catch {
+          /* refresh failed — fall through and surface the original error */
+        }
+      }
       if (res.status === 429) {
         const secs = getRetryAfterSeconds(res);
         startCooldown(secs);
@@ -541,6 +576,7 @@ function QRTab() {
 export default function AIChat() {
   const [params] = useSearchParams();
   const tabParam = params.get("tab");
+  const resumeSession = params.get("session") || "";
   const defaultTab = tabParam === "detect" ? "detect" : tabParam === "qr" ? "qr" : "chat";
 
   return (
@@ -557,7 +593,7 @@ export default function AIChat() {
           <TabsTrigger value="detect" className="rounded-full" data-testid="tab-detect"><ScanSearch className="w-4 h-4 mr-1.5" /> Scam Detector</TabsTrigger>
           <TabsTrigger value="qr" className="rounded-full" data-testid="tab-qr"><QrCode className="w-4 h-4 mr-1.5" /> QR Scanner</TabsTrigger>
         </TabsList>
-        <TabsContent value="chat" className="mt-6"><ChatTab /></TabsContent>
+        <TabsContent value="chat" className="mt-6"><ChatTab resumeSession={resumeSession} /></TabsContent>
         <TabsContent value="detect" className="mt-6"><DetectTab /></TabsContent>
         <TabsContent value="qr" className="mt-6"><QRTab /></TabsContent>
       </Tabs>

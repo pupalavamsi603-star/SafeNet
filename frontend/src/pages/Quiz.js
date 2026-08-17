@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { GraduationCap, CheckCircle2, XCircle, ChevronRight, RotateCcw, Download, Award, Loader2 } from "lucide-react";
 import { api } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Progress } from "../components/ui/progress";
@@ -66,6 +67,7 @@ function drawCertificate(canvas, name, score, total) {
 }
 
 export default function Quiz() {
+  const { user } = useAuth();
   const [questions, setQuestions] = useState(null);
   const [idx, setIdx] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -73,6 +75,7 @@ export default function Quiz() {
   const [score, setScore] = useState(0);
   const [finished, setFinished] = useState(false);
   const [name, setName] = useState("");
+  useEffect(() => { if (user?.name) setName((n) => n || user.name); }, [user]);
   const [certReady, setCertReady] = useState(false);
   const canvasRef = useRef(null);
 
@@ -86,7 +89,8 @@ export default function Quiz() {
     return <div className="text-center py-32 text-muted-foreground">No quiz questions available yet.</div>;
 
   const q = questions[idx];
-  const pct = Math.round((idx / questions.length) * 100);
+  // Count the current question once it's answered, so the bar reaches 100%.
+  const pct = Math.round(((answered ? idx + 1 : idx) / questions.length) * 100);
 
   const choose = (i) => {
     if (answered) return;
@@ -98,7 +102,9 @@ export default function Quiz() {
   const next = () => {
     if (idx + 1 >= questions.length) {
       setFinished(true);
-      api.post("/quiz/submit", { name: name || "Anonymous", score, total: questions.length }).catch(() => {});
+      // The certificate name field is only shown after this point, so `name` is
+      // still empty here — fall back to the signed-in user's name.
+      api.post("/quiz/submit", { name: user?.name || "Anonymous", score, total: questions.length }).catch(() => {});
     } else {
       setIdx(idx + 1);
       setSelected(null);

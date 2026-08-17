@@ -56,18 +56,32 @@ def create_refresh_token(user_id: str) -> str:
     payload = {"sub": user_id, "exp": datetime.now(timezone.utc) + timedelta(days=7), "type": "refresh"}
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
-def set_auth_cookies(response: Response, access: str, refresh: str):
-    # Cross-site cookies (SameSite=None; Secure) only needed when serving an https frontend on another domain
-    is_prod = "https://" in os.environ.get('CORS_ORIGINS', '')
-    response.set_cookie("access_token", access, httponly=True, secure=is_prod, samesite="none" if is_prod else "lax", max_age=43200, path="/")
-    response.set_cookie("refresh_token", refresh, httponly=True, secure=is_prod, samesite="none" if is_prod else "lax", max_age=604800, path="/")
+# Cross-site cookies (SameSite=None; Secure) are only needed when the frontend is
+# served from another domain over https. Set ENVIRONMENT=production explicitly;
+# the CORS_ORIGINS sniff is kept only as a fallback for existing deployments.
+IS_PROD = os.environ.get('ENVIRONMENT', '').lower() in ('production', 'prod') or \
+    "https://" in os.environ.get('CORS_ORIGINS', '')
+COOKIE_KWARGS = {"httponly": True, "secure": IS_PROD, "samesite": "none" if IS_PROD else "lax", "path": "/"}
 
-async def get_current_user(request: Request) -> dict:
+def set_auth_cookies(response: Response, access: str, refresh: str):
+    response.set_cookie("access_token", access, max_age=43200, **COOKIE_KWARGS)
+    response.set_cookie("refresh_token", refresh, max_age=604800, **COOKIE_KWARGS)
+
+def clear_auth_cookies(response: Response):
+    # Must match the attributes the cookies were set with, or the browser may keep them.
+    for name in ("access_token", "refresh_token"):
+        response.delete_cookie(name, path="/", secure=IS_PROD, samesite="none" if IS_PROD else "lax", httponly=True)
+
+def _bearer_or_cookie_token(request: Request) -> Optional[str]:
     token = request.cookies.get("access_token")
     if not token:
         auth_header = request.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
             token = auth_header[7:]
+    return token or None
+
+async def get_current_user(request: Request) -> dict:
+    token = _bearer_or_cookie_token(request)
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
@@ -82,6 +96,25 @@ async def get_current_user(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+async def get_optional_user(request: Request) -> Optional[dict]:
+    """Resolve the caller for endpoints that also serve guests.
+
+    Used by endpoints that work for guests but must attribute activity to the
+    logged-in user when there is one. Never trust a user_id from the request
+    body — it is attacker-controlled.
+
+    No credential at all => None (a genuine guest). A credential that is present
+    but expired or invalid => 401, so the client refreshes and retries rather
+    than being silently downgraded to a guest and then locked out of its own
+    chat session.
+    """
+    if _bearer_or_cookie_token(request) is None:
+        return None
+    return await get_current_user(request)
+
+def _uid(user: Optional[dict]) -> str:
+    return user["id"] if user else ""
 
 async def require_admin(user: dict = Depends(get_current_user)) -> dict:
     if user.get("role") != "admin":
@@ -128,6 +161,13 @@ ai_detect_limiter = RateLimiter(max_requests=10, window_seconds=60, name="ai_det
 ai_qr_limiter = RateLimiter(max_requests=10, window_seconds=60, name="ai_qr")
 auth_limiter = RateLimiter(max_requests=10, window_seconds=60, name="auth")
 url_check_limiter = RateLimiter(max_requests=15, window_seconds=60, name="url_check")
+# Unauthenticated writes (reports, contact, quiz results) — keeps spam and
+# 3MB base64 screenshots from filling the database.
+write_limiter = RateLimiter(max_requests=12, window_seconds=60, name="write")
+
+# One shared client: constructing AsyncOpenAI per request builds a new httpx
+# connection pool each time and never closes it.
+ai_client = openai.AsyncOpenAI(api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/v1")
 
 
 # ---------- models ----------
@@ -165,6 +205,8 @@ class QuizQuestionInput(BaseModel):
     correct_index: int
     explanation: str
 
+# NOTE: user_id is never accepted from the client on any of these models.
+# It is derived server-side from the auth cookie (see get_optional_user).
 class ReportInput(BaseModel):
     scam_category: str
     description: str = Field(min_length=10, max_length=5000)
@@ -174,7 +216,6 @@ class ReportInput(BaseModel):
     screenshot: str = ""
     reporter_name: str = ""
     reporter_email: str = ""
-    user_id: str = ""
 
 class ContactInput(BaseModel):
     name: str = Field(min_length=2, max_length=60)
@@ -183,17 +224,14 @@ class ContactInput(BaseModel):
     message: str = Field(min_length=5, max_length=5000)
 
 class ChatInput(BaseModel):
-    session_id: str
+    session_id: str = Field(min_length=8, max_length=100)
     message: str = Field(min_length=1, max_length=4000)
-    user_id: str = ""
 
 class DetectInput(BaseModel):
     message: str = Field(min_length=5, max_length=6000)
-    user_id: str = ""
 
 class QRScanInput(BaseModel):
     content: str = Field(min_length=1, max_length=6000)
-    user_id: str = ""
 
 class URLCheckInput(BaseModel):
     url: str = Field(min_length=4, max_length=2000)
@@ -202,26 +240,9 @@ class GoogleAuthInput(BaseModel):
     credential: str = Field(min_length=20)
 
 class QuizSubmitInput(BaseModel):
-    name: str = ""
-    score: int
-    total: int
-    user_id: str = ""
-
-class ReportInput(BaseModel):
-    scam_category: str
-    description: str = Field(min_length=10, max_length=5000)
-    scammer_phone: str = ""
-    scammer_url: str = ""
-    amount_lost: str = ""
-    screenshot: str = ""
-    reporter_name: str = ""
-    reporter_email: str = ""
-    user_id: str = ""
-
-class ChatInput(BaseModel):
-    session_id: str
-    message: str = Field(min_length=1, max_length=4000)
-    user_id: str = ""
+    name: str = Field(default="", max_length=60)
+    score: int = Field(ge=0)
+    total: int = Field(gt=0)
 
 
 # ---------- auth routes ----------
@@ -304,8 +325,7 @@ async def refresh(request: Request, response: Response, _=Depends(auth_limiter))
 
 @api_router.post("/auth/logout")
 async def logout(response: Response):
-    response.delete_cookie("access_token", path="/")
-    response.delete_cookie("refresh_token", path="/")
+    clear_auth_cookies(response)
     return {"message": "Logged out"}
 
 @api_router.get("/auth/me")
@@ -334,8 +354,10 @@ async def quiz_questions():
     return await db.quiz_questions.find({}, {"_id": 0}).to_list(50)
 
 @api_router.post("/quiz/submit")
-async def quiz_submit(data: QuizSubmitInput):
-    doc = {"id": str(uuid.uuid4()), "name": data.name, "score": data.score, "total": data.total, "user_id": data.user_id, "created_at": now_iso()}
+async def quiz_submit(data: QuizSubmitInput, user: Optional[dict] = Depends(get_optional_user), _=Depends(write_limiter)):
+    if data.score > data.total:
+        raise HTTPException(status_code=400, detail="Score cannot exceed the number of questions")
+    doc = {"id": str(uuid.uuid4()), "name": data.name, "score": data.score, "total": data.total, "user_id": _uid(user), "created_at": now_iso()}
     await db.quiz_results.insert_one({**doc})
     return doc
 
@@ -352,26 +374,29 @@ async def get_blog(slug: str):
 
 @api_router.get("/search")
 async def search(q: str):
-    q = q.strip()
+    import re
+    q = q.strip()[:100]
     if len(q) < 2:
         return {"scams": [], "tips": [], "blog": []}
-    rx = {"$regex": q, "$options": "i"}
+    # Escape the query: an unescaped user string is a regex the DB will run,
+    # so a pattern like (a+)+$ becomes a free CPU-exhaustion attack.
+    rx = {"$regex": re.escape(q), "$options": "i"}
     scams = await db.scam_types.find({"$or": [{"title": rx}, {"description": rx}]}, {"_id": 0, "title": 1, "slug": 1, "description": 1}).to_list(5)
     tips = await db.safety_tips.find({"$or": [{"title": rx}, {"summary": rx}]}, {"_id": 0, "title": 1, "slug": 1, "summary": 1}).to_list(5)
     blog = await db.blog_posts.find({"$or": [{"title": rx}, {"excerpt": rx}]}, {"_id": 0, "title": 1, "slug": 1, "excerpt": 1}).to_list(5)
     return {"scams": scams, "tips": tips, "blog": blog}
 
 @api_router.post("/reports")
-async def create_report(data: ReportInput):
+async def create_report(data: ReportInput, user: Optional[dict] = Depends(get_optional_user), _=Depends(write_limiter)):
     if data.screenshot and len(data.screenshot) > 3_000_000:
         raise HTTPException(status_code=400, detail="Screenshot too large (max ~2MB)")
-    doc = {"id": str(uuid.uuid4()), **data.model_dump(), "status": "pending", "created_at": now_iso()}
+    doc = {"id": str(uuid.uuid4()), **data.model_dump(), "user_id": _uid(user), "status": "pending", "created_at": now_iso()}
     await db.reports.insert_one({**doc})
     doc.pop("screenshot", None)
     return doc
 
 @api_router.post("/contact")
-async def create_contact(data: ContactInput):
+async def create_contact(data: ContactInput, _=Depends(write_limiter)):
     doc = {"id": str(uuid.uuid4()), **data.model_dump(), "read": False, "created_at": now_iso()}
     await db.contact_messages.insert_one({**doc})
     return doc
@@ -396,18 +421,34 @@ DETECT_SYSTEM = (
     '"advice": ["<action1>", "<action2>", "<action3>"]}'
 )
 
+async def assert_session_access(session_id: str, uid: str):
+    """A chat session belongs to whoever created it.
+
+    Sessions started while logged in are readable only by that account. Sessions
+    started as a guest carry no identity, so they stay open to guests — the id is
+    random and nothing in them is tied to a person.
+    """
+    first = await db.chat_messages.find_one(
+        {"session_id": session_id}, {"_id": 0, "user_id": 1}, sort=[("created_at", 1)]
+    )
+    if first is None:
+        return  # brand-new session, the caller claims it
+    if (first.get("user_id") or "") != uid:
+        raise HTTPException(status_code=403, detail="This conversation belongs to another account")
+
 @api_router.post("/ai/chat")
-async def ai_chat(data: ChatInput, _=Depends(ai_chat_limiter)):
+async def ai_chat(data: ChatInput, user: Optional[dict] = Depends(get_optional_user), _=Depends(ai_chat_limiter)):
+    uid = _uid(user)
+    await assert_session_access(data.session_id, uid)
     history = await db.chat_messages.find({"session_id": data.session_id}, {"_id": 0}).sort("created_at", -1).to_list(10)
     history.reverse()
     context = ""
     if history:
         context = "Previous conversation:\n" + "\n".join(f"{m['role']}: {m['content'][:500]}" for m in history) + "\n\nUser's new message: "
-    await db.chat_messages.insert_one({"id": str(uuid.uuid4()), "session_id": data.session_id, "user_id": data.user_id, "role": "user", "content": data.message, "created_at": now_iso()})
+    await db.chat_messages.insert_one({"id": str(uuid.uuid4()), "session_id": data.session_id, "user_id": uid, "role": "user", "content": data.message, "created_at": now_iso()})
 
     async def gen():
         full = ""
-        ai_client = openai.AsyncOpenAI(api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/v1")
         for model in (OPENROUTER_MODEL,):
             try:
                 msgs = [{"role": "system", "content": CHAT_SYSTEM}]
@@ -432,19 +473,19 @@ async def ai_chat(data: ChatInput, _=Depends(ai_chat_limiter)):
         if not full:
             yield "Sorry, I ran into a problem answering that. Please try again in a moment."
         if full:
-            await db.chat_messages.insert_one({"id": str(uuid.uuid4()), "session_id": data.session_id, "role": "assistant", "content": full, "created_at": now_iso()})
+            await db.chat_messages.insert_one({"id": str(uuid.uuid4()), "session_id": data.session_id, "user_id": uid, "role": "assistant", "content": full, "created_at": now_iso()})
 
     return StreamingResponse(gen(), media_type="text/plain", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 @api_router.get("/ai/chat/{session_id}/history")
-async def chat_history(session_id: str):
+async def chat_history(session_id: str, user: Optional[dict] = Depends(get_optional_user)):
+    await assert_session_access(session_id, _uid(user))
     msgs = await db.chat_messages.find({"session_id": session_id}, {"_id": 0}).sort("created_at", 1).to_list(100)
     return msgs
 
 @api_router.post("/ai/detect")
-async def ai_detect(data: DetectInput, _=Depends(ai_detect_limiter)):
+async def ai_detect(data: DetectInput, user: Optional[dict] = Depends(get_optional_user), _=Depends(ai_detect_limiter)):
     import json as jsonlib
-    ai_client = openai.AsyncOpenAI(api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/v1")
     try:
         response = await ai_client.chat.completions.create(
             model=OPENROUTER_MODEL,
@@ -459,7 +500,7 @@ async def ai_detect(data: DetectInput, _=Depends(ai_detect_limiter)):
             if text.startswith("json"):
                 text = text[4:]
         parsed = jsonlib.loads(text.strip())
-        await db.detections.insert_one({"id": str(uuid.uuid4()), "message": data.message[:1000], "user_id": data.user_id, "result": parsed, "created_at": now_iso()})
+        await db.detections.insert_one({"id": str(uuid.uuid4()), "message": data.message[:1000], "user_id": _uid(user), "result": parsed, "created_at": now_iso()})
         return parsed
     except Exception as e:
         logger.error(f"AI detect error: {e}")
@@ -479,8 +520,16 @@ QR_SYSTEM = (
     '"explanation": "<2-3 sentence plain-language explanation>", "advice": ["<action1>", "<action2>", "<action3>"]}'
 )
 
-URL_SHORTENERS = {"bit.ly", "tinyurl.com", "goo.gl", "t.co", "is.gd", "buff.ly", "rebrand.ly", "cutt.ly", "shorturl.at", "rb.gy", "tiny.cc", "s.id", "v.gd", "ow.ly"}
-SUSPICIOUS_TLDS = {".tk", ".ml", ".ga", ".cf", ".gq", ".xyz", ".top", ".buzz", ".club", ".work", ".zip", ".icu"}
+# Single source of truth — the QR and URL checkers previously kept two
+# near-identical copies of these, which drifted apart.
+URL_SHORTENERS = {
+    "bit.ly", "tinyurl.com", "goo.gl", "t.co", "is.gd", "buff.ly", "rebrand.ly", "cutt.ly",
+    "shorturl.at", "rb.gy", "tiny.cc", "s.id", "v.gd", "ow.ly", "cli.gs", "url.ie", "tr.im",
+}
+SUSPICIOUS_TLDS = {
+    ".tk", ".ml", ".ga", ".cf", ".gq", ".xyz", ".top", ".buzz", ".club", ".work", ".zip",
+    ".icu", ".review", ".date", ".loan", ".download", ".men", ".win", ".bid",
+}
 
 def qr_heuristics(content: str) -> list:
     """Instant local red-flag checks on decoded QR content, merged with the AI result."""
@@ -512,10 +561,9 @@ def qr_heuristics(content: str) -> list:
     return flags
 
 @api_router.post("/ai/qr")
-async def ai_qr(data: QRScanInput, _=Depends(ai_qr_limiter)):
+async def ai_qr(data: QRScanInput, user: Optional[dict] = Depends(get_optional_user), _=Depends(ai_qr_limiter)):
     import json as jsonlib
     local_flags = qr_heuristics(data.content)
-    ai_client = openai.AsyncOpenAI(api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/v1")
     try:
         hint = ("\n\nLocal heuristic checks already flagged: " + "; ".join(local_flags)) if local_flags else ""
         messages = [
@@ -534,7 +582,7 @@ async def ai_qr(data: QRScanInput, _=Depends(ai_qr_limiter)):
         for f in local_flags:
             if f.lower() not in existing:
                 parsed.setdefault("red_flags", []).append(f)
-        await db.qr_scans.insert_one({"id": str(uuid.uuid4()), "content": data.content[:1000], "user_id": data.user_id, "result": parsed, "created_at": now_iso()})
+        await db.qr_scans.insert_one({"id": str(uuid.uuid4()), "content": data.content[:1000], "user_id": _uid(user), "result": parsed, "created_at": now_iso()})
         return parsed
     except Exception as e:
         logger.error(f"AI QR error: {e}")
@@ -542,9 +590,6 @@ async def ai_qr(data: QRScanInput, _=Depends(ai_qr_limiter)):
 
 
 # ---------- URL check ----------
-
-SUSPICIOUS_TLDS_URL = {".tk", ".ml", ".ga", ".cf", ".gq", ".xyz", ".top", ".buzz", ".club", ".work", ".zip", ".icu", ".review", ".date", ".loan", ".download", ".men", ".win", ".bid"}
-URL_SHORTENERS_URL = {"bit.ly", "tinyurl.com", "goo.gl", "t.co", "is.gd", "buff.ly", "rebrand.ly", "cutt.ly", "shorturl.at", "rb.gy", "tiny.cc", "s.id", "v.gd", "ow.ly", "cli.gs", "url.ie", "tr.im"}
 
 def url_heuristics(url: str) -> list:
     import re
@@ -557,21 +602,28 @@ def url_heuristics(url: str) -> list:
     m = re.search(r"https?://([^/\s:?]+)", u)
     if m:
         host = m.group(1)
-        if host in URL_SHORTENERS_URL or any(host.endswith("." + s) for s in URL_SHORTENERS_URL):
+        if host in URL_SHORTENERS or any(host.endswith("." + s) for s in URL_SHORTENERS):
             flags.append(f"Shortened URL ({host}) hides the real destination")
         if re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}(:\d+)?", host):
             flags.append("Links directly to a raw IP address — unusual for legitimate sites")
         if "xn--" in host:
             flags.append("Punycode domain — may impersonate a trusted site with lookalike characters")
-        for tld in SUSPICIOUS_TLDS_URL:
+        for tld in SUSPICIOUS_TLDS:
             if host.endswith(tld):
                 flags.append(f"Domain uses {tld} — a TLD commonly abused by scammers")
                 break
         if re.search(r"\.(apk|exe|msi|bat|scr|zip|rar)($|\?)", u):
             flags.append("Direct download link for executables — common malware delivery method")
-        dots = host.rstrip("/").count(".")
-        subdomain = host.split(".")[0] if dots > 1 else ""
-        if subdomain and subdomain not in ("www", "mail", "m", "shop", "blog", "app", "api", "docs", "help", "support", "login", "account", "secure", "web", "beta", "portal"):
+        # Score the leftmost label. Previously this only ran when the host had
+        # more than one dot, so two-label phishing domains (secure-login-paypal.tk)
+        # were never checked at all.
+        subdomain = host.rstrip("/").split(".")[0]
+        BENIGN_LABELS = (
+            "www", "mail", "m", "shop", "blog", "app", "apps", "api", "docs", "help", "support",
+            "login", "account", "accounts", "secure", "web", "beta", "portal", "signin", "auth",
+            "id", "my", "store", "news", "developer", "developers", "cloud", "console", "admin",
+        )
+        if subdomain and subdomain not in BENIGN_LABELS:
             score = 0
             for kw in ("secure", "login", "account", "bank", "verify", "update", "confirm", "paypal", "apple", "google", "microsoft", "amazon", "netflix", "insta", "faceboo", "whatsapp", "telegram", "signin", "2fa", "auth", "wallet", "refund", "claim", "prize", "won", "free", "gift", "bonus", "reward", "cash", "lottery", "crypto", "bitcoin"):
                 if kw in subdomain or kw in host:
@@ -594,7 +646,6 @@ URL_CHECK_SYSTEM = (
 async def ai_url_check(data: URLCheckInput, _=Depends(url_check_limiter)):
     import json as jsonlib
     local_flags = url_heuristics(data.url)
-    ai_client = openai.AsyncOpenAI(api_key=OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/v1")
     try:
         hint = ("\n\nLocal checks already flagged: " + "; ".join(local_flags)) if local_flags else ""
         messages = [
@@ -620,9 +671,6 @@ async def ai_url_check(data: URLCheckInput, _=Depends(url_check_limiter)):
 
 # ---------- user dashboard ----------
 
-def _user_prefix(user_id: str, user: dict):
-    return {"user_id": user_id} if user_id else {}
-
 @api_router.get("/user/stats")
 async def user_stats(user: dict = Depends(get_current_user)):
     uid = user["id"]
@@ -630,7 +678,7 @@ async def user_stats(user: dict = Depends(get_current_user)):
     quizzes = await db.quiz_results.count_documents({"user_id": uid})
     reports = await db.reports.count_documents({"user_id": uid})
     qr_scans = await db.qr_scans.count_documents({"user_id": uid})
-    chats = await db.chat_messages.count_documents({"user_id": uid, "role": "user"})
+    chats = len(await db.chat_messages.distinct("session_id", {"user_id": uid}))
     return {
         "name": user.get("name", ""),
         "email": user.get("email", ""),
@@ -725,6 +773,8 @@ async def delete_scam(item_id: str, admin: dict = Depends(require_admin)):
 async def create_tip(data: SafetyTipInput, admin: dict = Depends(require_admin)):
     doc = {"id": str(uuid.uuid4()), **data.model_dump(), "created_at": now_iso()}
     doc["slug"] = doc["slug"] or slugify(doc["title"])
+    if await db.safety_tips.find_one({"slug": doc["slug"]}):
+        doc["slug"] = f"{doc['slug']}-{doc['id'][:6]}"
     await db.safety_tips.insert_one({**doc})
     return doc
 
@@ -842,8 +892,18 @@ async def seed():
         await db.users.insert_one({"id": str(uuid.uuid4()), "name": "SafeNet Admin", "email": admin_email,
                                    "password_hash": hash_password(admin_password), "role": "admin", "created_at": now_iso()})
         logger.info("Admin account seeded")
-    elif not verify_password(admin_password, existing["password_hash"]):
-        await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": hash_password(admin_password)}})
+    else:
+        # An account on this email may have been created via Google sign-in, in
+        # which case it has no password_hash at all — don't assume the key exists.
+        current_hash = existing.get("password_hash")
+        updates = {}
+        if not current_hash or not verify_password(admin_password, current_hash):
+            updates["password_hash"] = hash_password(admin_password)
+        if existing.get("role") != "admin":
+            updates["role"] = "admin"
+        if updates:
+            await db.users.update_one({"email": admin_email}, {"$set": updates})
+            logger.info("Admin account reconciled")
 
     if await db.scam_types.count_documents({}) == 0:
         await db.scam_types.insert_many([{"id": str(uuid.uuid4()), **s, "created_at": now_iso()} for s in SCAM_TYPES])
