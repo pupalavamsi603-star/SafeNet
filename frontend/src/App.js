@@ -1,5 +1,5 @@
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
@@ -21,6 +21,16 @@ import Register from "./pages/Register";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+
+// The auth pages use their own full-height split layout and already carry a
+// copyright line, so the site footer is duplicate chrome there.
+const NO_FOOTER_ROUTES = ["/login", "/register"];
+
+function SiteFooter() {
+  const { pathname } = useLocation();
+  if (NO_FOOTER_ROUTES.includes(pathname)) return null;
+  return <Footer />;
+}
 
 function App() {
   return (
@@ -49,7 +59,7 @@ function App() {
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
-            <Footer />
+            <SiteFooter />
           </div>
           <Toaster position="top-right" richColors />
         </BrowserRouter>
