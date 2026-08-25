@@ -70,9 +70,8 @@ function URLTool() {
   const cfg = result ? riskCfg[result.risk_level] || riskCfg.suspicious : null;
 
   return (
-    <section className="relative overflow-hidden py-24" id="url-check">
-      <SectionGlow rings={4} />
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+    <section className="py-24" id="url-check">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
         <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
           <span className="inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-4 py-1.5 text-xs font-medium tracking-wide text-sky-400">
             <Globe className="w-3.5 h-3.5" /> URL Safety Checker
@@ -231,9 +230,8 @@ export default function Home() {
       <URLTool />
 
       {/* STATS */}
-      <section className="relative overflow-hidden border-b">
-        <SectionGlow rings={0} stars={false} />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-2 md:grid-cols-4">
+      <section className="border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-2 md:grid-cols-4">
           {stats.map((s, i) => (
             <div key={s.label} className={`py-8 px-4 ${i !== 0 ? "md:border-l" : ""} ${i % 2 !== 0 ? "border-l md:border-l" : ""}`}>
               <p className="font-heading text-3xl font-bold text-sky-500">{s.value}</p>
@@ -286,9 +284,8 @@ export default function Home() {
       </section>
 
       {/* ALERT BANNER */}
-      <section className="relative overflow-hidden pb-24">
-        <SectionGlow rings={0} stars={false} />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
+      <section className="pb-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-8 md:p-10 flex flex-col md:flex-row md:items-center gap-6">
           <AlertTriangle className="w-10 h-10 text-red-500 shrink-0" strokeWidth={1.5} />
           <div className="flex-1">

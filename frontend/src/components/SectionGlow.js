@@ -1,55 +1,49 @@
 import { StarField } from "./StarField";
 
 /**
- * Section backdrop that echoes the hero: concentric arcs rippling out from the
- * top centre, a soft glow behind the heading, and a sparse starfield.
+ * A single contained ripple that sits behind a centred section heading.
  *
- * Deliberately theme-agnostic — it tints whatever background sits behind it
- * rather than forcing its own, so it works in light and dark.
+ * Deliberately bounded and masked: the arcs fade out well before the section
+ * edges, so neighbouring sections never look like one continuous pattern.
+ * Use it only on sections that actually have a centred heading — repeating it
+ * down the page is what makes sections bleed into each other.
  */
-export function SectionGlow({ rings = 5, stars = true, className = "" }) {
-  return (
-    <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`} aria-hidden="true">
-      {/* glow pooled behind the section heading */}
-      <div
-        className="absolute inset-x-0 top-0 h-[420px]"
-        style={{
-          background:
-            "radial-gradient(50% 100% at 50% 0%, rgba(56,189,248,0.12) 0%, rgba(37,99,235,0.06) 45%, rgba(0,0,0,0) 75%)",
-        }}
-      />
+export function SectionGlow({ stars = true, className = "" }) {
+  // Fades the whole thing out towards the edges instead of letting the section
+  // boundary slice through the arcs.
+  const fade = "radial-gradient(58% 62% at 50% 22%, #000 0%, rgba(0,0,0,0.55) 55%, transparent 78%)";
 
-      {/* concentric arcs, centred just above the section so only the lower
-          curve of each ring reads as a ripple behind the heading */}
-      {Array.from({ length: rings }, (_, i) => {
-        const size = 420 + i * 230;
-        return (
+  return (
+    <div className={`absolute inset-x-0 top-0 h-[440px] overflow-hidden pointer-events-none ${className}`} aria-hidden="true">
+      <div
+        className="absolute left-1/2 top-0 -translate-x-1/2 w-[880px] max-w-[130vw] h-[440px]"
+        style={{ maskImage: fade, WebkitMaskImage: fade }}
+      >
+        {/* soft pool of light behind the heading */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(46% 62% at 50% 12%, rgba(56,189,248,0.10) 0%, rgba(37,99,235,0.05) 45%, rgba(0,0,0,0) 74%)",
+          }}
+        />
+
+        {/* concentric arcs, kept small and faint */}
+        {[300, 440, 580, 720].map((size, i) => (
           <div
             key={size}
             className="absolute left-1/2 top-0 rounded-full border"
             style={{
               width: size,
               height: size,
-              transform: "translate(-50%, -58%)",
-              borderColor: `rgba(125,211,252,${Math.max(0.03, 0.11 - i * 0.018).toFixed(3)})`,
+              transform: "translate(-50%, -46%)",
+              borderColor: `rgba(125,211,252,${(0.07 - i * 0.013).toFixed(3)})`,
             }}
           />
-        );
-      })}
+        ))}
 
-      {stars && (
-        <div className="absolute inset-x-0 top-0 h-[520px]">
-          <StarField density={70} color="125, 211, 252" />
-        </div>
-      )}
-
-      {/* fade the whole thing out before the cards so nothing cuts hard */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: "linear-gradient(to bottom, rgba(0,0,0,0) 45%, var(--section-glow-fade, transparent) 100%)",
-        }}
-      />
+        {stars && <StarField density={45} color="148, 197, 245" />}
+      </div>
     </div>
   );
 }
