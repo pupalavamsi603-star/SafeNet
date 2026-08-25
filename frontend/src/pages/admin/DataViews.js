@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
-import { Loader2, Trash2, ExternalLink, MailOpen } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Trash2, ExternalLink, MailOpen } from "lucide-react";
 import { toast } from "sonner";
 import { api, formatApiErrorDetail } from "../../lib/api";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
+import { LoadingState, ErrorState } from "../../components/StateViews";
 
 const statusColor = {
   pending: "bg-amber-500/15 text-amber-500 border-amber-500/30",
@@ -17,8 +18,14 @@ export const ReportsView = () => {
   const [reports, setReports] = useState(null);
   const [selected, setSelected] = useState(null);
 
-  const load = () => api.get("/admin/reports").then((r) => setReports(r.data)).catch(() => setReports([]));
-  useEffect(() => { load(); }, []);
+  const [error, setError] = useState(false);
+
+  const load = useCallback(() => {
+    setError(false);
+    return api.get("/admin/reports").then((r) => setReports(r.data)).catch(() => setError(true));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   const setStatus = async (id, status) => {
     try {
@@ -28,7 +35,8 @@ export const ReportsView = () => {
     } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
   };
 
-  if (!reports) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-500" /></div>;
+  if (error) return <ErrorState message="Couldn't load reports." onRetry={load} testId="admin-reports-error" />;
+  if (!reports) return <LoadingState label="Loading reports" className="py-20" />;
   if (reports.length === 0) return <p className="text-sm text-muted-foreground text-center py-16" data-testid="reports-empty">No scam reports yet.</p>;
 
   return (
@@ -80,15 +88,22 @@ export const ReportsView = () => {
 export const MessagesView = () => {
   const [messages, setMessages] = useState(null);
 
-  const load = () => api.get("/admin/contacts").then((r) => setMessages(r.data)).catch(() => setMessages([]));
-  useEffect(() => { load(); }, []);
+  const [error, setError] = useState(false);
+
+  const load = useCallback(() => {
+    setError(false);
+    return api.get("/admin/contacts").then((r) => setMessages(r.data)).catch(() => setError(true));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   const markRead = async (id) => {
     await api.patch(`/admin/contacts/${id}`).catch(() => {});
     load();
   };
 
-  if (!messages) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-500" /></div>;
+  if (error) return <ErrorState message="Couldn't load messages." onRetry={load} testId="admin-messages-error" />;
+  if (!messages) return <LoadingState label="Loading messages" className="py-20" />;
   if (messages.length === 0) return <p className="text-sm text-muted-foreground text-center py-16" data-testid="messages-empty">No contact messages yet.</p>;
 
   return (
@@ -115,8 +130,14 @@ export const MessagesView = () => {
 export const UsersView = ({ onChange }) => {
   const [users, setUsers] = useState(null);
 
-  const load = () => api.get("/admin/users").then((r) => setUsers(r.data)).catch(() => setUsers([]));
-  useEffect(() => { load(); }, []);
+  const [error, setError] = useState(false);
+
+  const load = useCallback(() => {
+    setError(false);
+    return api.get("/admin/users").then((r) => setUsers(r.data)).catch(() => setError(true));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   const remove = async (u) => {
     if (!window.confirm(`Delete user ${u.email}?`)) return;
@@ -127,7 +148,8 @@ export const UsersView = ({ onChange }) => {
     } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail)); }
   };
 
-  if (!users) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-500" /></div>;
+  if (error) return <ErrorState message="Couldn't load users." onRetry={load} testId="admin-users-error" />;
+  if (!users) return <LoadingState label="Loading users" className="py-20" />;
 
   return (
     <div className="rounded-xl border bg-card divide-y" data-testid="admin-users-view">

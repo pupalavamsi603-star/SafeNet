@@ -93,20 +93,20 @@ export const ScamManager = ({ onChange }) => {
           <DialogHeader><DialogTitle className="font-heading">{editing ? "Edit Scam Article" : "New Scam Article"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5"><Label>Title *</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} data-testid="scam-form-title" /></div>
+              <div className="space-y-1.5"><Label htmlFor="scam-title">Title *</Label><Input id="scam-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} data-testid="scam-form-title" /></div>
               <div className="space-y-1.5">
-                <Label>Severity</Label>
+                <Label htmlFor="scam-severity">Severity</Label>
                 <Select value={form.severity} onValueChange={(v) => setForm({ ...form, severity: v })}>
-                  <SelectTrigger data-testid="scam-form-severity"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="scam-severity" data-testid="scam-form-severity"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value="critical">Critical</SelectItem><SelectItem value="high">High</SelectItem></SelectContent>
                 </Select>
               </div>
             </div>
-            <div className="space-y-1.5"><Label>Description *</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} data-testid="scam-form-description" /></div>
-            <div className="space-y-1.5"><Label>How it works *</Label><Textarea value={form.how_it_works} onChange={(e) => setForm({ ...form, how_it_works: e.target.value })} data-testid="scam-form-how" /></div>
-            <div className="space-y-1.5"><Label>Warning signs (one per line)</Label><Textarea value={form.warning_signs} onChange={(e) => setForm({ ...form, warning_signs: e.target.value })} data-testid="scam-form-warnings" /></div>
-            <div className="space-y-1.5"><Label>Prevention tips (one per line)</Label><Textarea value={form.prevention_tips} onChange={(e) => setForm({ ...form, prevention_tips: e.target.value })} data-testid="scam-form-prevention" /></div>
-            <div className="space-y-1.5"><Label>Real-life example</Label><Textarea value={form.real_example} onChange={(e) => setForm({ ...form, real_example: e.target.value })} data-testid="scam-form-example" /></div>
+            <div className="space-y-1.5"><Label htmlFor="scam-description">Description *</Label><Textarea id="scam-description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} data-testid="scam-form-description" /></div>
+            <div className="space-y-1.5"><Label htmlFor="scam-how">How it works *</Label><Textarea id="scam-how" value={form.how_it_works} onChange={(e) => setForm({ ...form, how_it_works: e.target.value })} data-testid="scam-form-how" /></div>
+            <div className="space-y-1.5"><Label htmlFor="scam-warnings">Warning signs (one per line)</Label><Textarea id="scam-warnings" value={form.warning_signs} onChange={(e) => setForm({ ...form, warning_signs: e.target.value })} data-testid="scam-form-warnings" /></div>
+            <div className="space-y-1.5"><Label htmlFor="scam-prevention">Prevention tips (one per line)</Label><Textarea id="scam-prevention" value={form.prevention_tips} onChange={(e) => setForm({ ...form, prevention_tips: e.target.value })} data-testid="scam-form-prevention" /></div>
+            <div className="space-y-1.5"><Label htmlFor="scam-example">Real-life example</Label><Textarea id="scam-example" value={form.real_example} onChange={(e) => setForm({ ...form, real_example: e.target.value })} data-testid="scam-form-example" /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>

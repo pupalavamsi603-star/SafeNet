@@ -67,21 +67,21 @@ export default function Contact() {
             <form onSubmit={submit} className="rounded-xl border bg-card p-8 space-y-5" data-testid="contact-form">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="space-y-2">
-                  <Label>Name *</Label>
-                  <Input required minLength={2} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Your name" data-testid="contact-name-input" />
+                  <Label htmlFor="contact-name">Name *</Label>
+                  <Input id="contact-name" required minLength={2} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Your name" data-testid="contact-name-input" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Email *</Label>
-                  <Input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="you@example.com" data-testid="contact-email-input" />
+                  <Label htmlFor="contact-email">Email *</Label>
+                  <Input id="contact-email" required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="you@example.com" data-testid="contact-email-input" />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Subject *</Label>
-                <Input required minLength={2} value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="What is this about?" data-testid="contact-subject-input" />
+                <Label htmlFor="contact-subject">Subject *</Label>
+                <Input id="contact-subject" required minLength={2} value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="What is this about?" data-testid="contact-subject-input" />
               </div>
               <div className="space-y-2">
-                <Label>Message *</Label>
-                <Textarea required minLength={5} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder="Tell us more..." className="min-h-[140px]" data-testid="contact-message-input" />
+                <Label htmlFor="contact-message">Message *</Label>
+                <Textarea id="contact-message" required minLength={5} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder="Tell us more..." className="min-h-[140px]" data-testid="contact-message-input" />
               </div>
               <Button type="submit" disabled={submitting} className="rounded-full bg-sky-500 hover:bg-sky-600 text-white px-8" data-testid="contact-submit-button">
                 {submitting ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending...</>) : (<><SendHorizonal className="w-4 h-4 mr-2" /> Send Message</>)}

@@ -112,3 +112,49 @@ code {
         border-bottom-color: inherit;
     }
 }
+
+/* ---------- accessibility ---------- */
+
+/* Keyboard users had no visible focus indicator anywhere. :focus-visible only
+   shows for keyboard/AT navigation, so mouse clicks stay visually unchanged. */
+:focus-visible {
+    outline: 2px solid hsl(199 89% 48%);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* The router moves focus to <main> on navigation; that shouldn't draw a ring. */
+main:focus,
+main:focus-visible {
+    outline: none;
+}
+
+/* Off-screen until focused, then pinned top-left — lets keyboard users jump
+   past the nav instead of tabbing through every link on every page. */
+.skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 100;
+    padding: 0.75rem 1.25rem;
+    background: hsl(199 89% 48%);
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-bottom-right-radius: 0.5rem;
+}
+
+.skip-link:focus {
+    left: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

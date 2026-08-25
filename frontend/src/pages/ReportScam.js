@@ -80,9 +80,9 @@ export default function ReportScam() {
       <div className="mt-12 grid grid-cols-1 lg:grid-cols-12 gap-10">
         <form onSubmit={submit} className="lg:col-span-7 rounded-xl border bg-card p-8 space-y-6" data-testid="report-form">
           <div className="space-y-2">
-            <Label>Scam category *</Label>
+            <Label htmlFor="report-category">Scam category *</Label>
             <Select value={form.scam_category} onValueChange={(v) => setForm({ ...form, scam_category: v })}>
-              <SelectTrigger data-testid="report-category-select"><SelectValue placeholder="Select the type of scam" /></SelectTrigger>
+              <SelectTrigger id="report-category" data-testid="report-category-select"><SelectValue placeholder="Select the type of scam" /></SelectTrigger>
               <SelectContent>
                 {categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 <SelectItem value="Other">Other</SelectItem>
@@ -91,8 +91,9 @@ export default function ReportScam() {
           </div>
 
           <div className="space-y-2">
-            <Label>What happened? *</Label>
+            <Label htmlFor="report-description">What happened? *</Label>
             <Textarea
+              id="report-description"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder="Describe the scam — what was said, what you were asked to do, how contact was made..."
@@ -104,28 +105,28 @@ export default function ReportScam() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-2">
-              <Label className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> Scammer's phone number</Label>
-              <Input value={form.scammer_phone} onChange={(e) => setForm({ ...form, scammer_phone: e.target.value })} placeholder="+91 XXXXX XXXXX" data-testid="report-phone-input" />
+              <Label htmlFor="report-phone" className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> Scammer's phone number</Label>
+              <Input id="report-phone" value={form.scammer_phone} onChange={(e) => setForm({ ...form, scammer_phone: e.target.value })} placeholder="+91 XXXXX XXXXX" data-testid="report-phone-input" />
             </div>
             <div className="space-y-2">
-              <Label>Suspicious URL / website</Label>
-              <Input value={form.scammer_url} onChange={(e) => setForm({ ...form, scammer_url: e.target.value })} placeholder="http://fake-site.example" data-testid="report-url-input" />
+              <Label htmlFor="report-url">Suspicious URL / website</Label>
+              <Input id="report-url" value={form.scammer_url} onChange={(e) => setForm({ ...form, scammer_url: e.target.value })} placeholder="http://fake-site.example" data-testid="report-url-input" />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-2">
-              <Label>Amount lost (if any)</Label>
-              <Input value={form.amount_lost} onChange={(e) => setForm({ ...form, amount_lost: e.target.value })} placeholder="e.g. ₹5,000 or $100" data-testid="report-amount-input" />
+              <Label htmlFor="report-amount">Amount lost (if any)</Label>
+              <Input id="report-amount" value={form.amount_lost} onChange={(e) => setForm({ ...form, amount_lost: e.target.value })} placeholder="e.g. ₹5,000 or $100" data-testid="report-amount-input" />
             </div>
             <div className="space-y-2">
-              <Label>Screenshot (optional, max 2MB)</Label>
+              <Label htmlFor="report-screenshot">Screenshot (optional, max 2MB)</Label>
               <div className="flex items-center gap-2">
                 <label className="flex-1 cursor-pointer">
                   <div className="flex items-center gap-2 rounded-md border border-input px-3 h-10 text-sm text-muted-foreground hover:border-sky-500/60 transition-colors duration-200">
                     <Upload className="w-4 h-4" /> <span className="truncate">{fileName || "Upload image"}</span>
                   </div>
-                  <input type="file" accept="image/*" onChange={onFile} className="hidden" data-testid="report-screenshot-input" />
+                  <input id="report-screenshot" type="file" accept="image/*" onChange={onFile} className="hidden" data-testid="report-screenshot-input" />
                 </label>
                 {screenshot && (
                   <Button type="button" variant="ghost" size="icon" onClick={() => { setScreenshot(""); setFileName(""); }} aria-label="Remove screenshot">
@@ -138,12 +139,12 @@ export default function ReportScam() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-2">
-              <Label>Your name (optional)</Label>
-              <Input value={form.reporter_name} onChange={(e) => setForm({ ...form, reporter_name: e.target.value })} placeholder="Anonymous" data-testid="report-name-input" />
+              <Label htmlFor="report-reporter-name">Your name (optional)</Label>
+              <Input id="report-reporter-name" value={form.reporter_name} onChange={(e) => setForm({ ...form, reporter_name: e.target.value })} placeholder="Anonymous" data-testid="report-name-input" />
             </div>
             <div className="space-y-2">
-              <Label>Your email (optional)</Label>
-              <Input type="email" value={form.reporter_email} onChange={(e) => setForm({ ...form, reporter_email: e.target.value })} placeholder="you@example.com" data-testid="report-email-input" />
+              <Label htmlFor="report-reporter-email">Your email (optional)</Label>
+              <Input id="report-reporter-email" type="email" value={form.reporter_email} onChange={(e) => setForm({ ...form, reporter_email: e.target.value })} placeholder="you@example.com" data-testid="report-email-input" />
             </div>
           </div>
 

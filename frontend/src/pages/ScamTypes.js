@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ChevronRight, Loader2 } from "lucide-react";
+import { ChevronRight, ShieldAlert } from "lucide-react";
 import { api } from "../lib/api";
 import { getIcon } from "../lib/icons";
 import { Badge } from "../components/ui/badge";
+import { LoadingState, ErrorState, EmptyState } from "../components/StateViews";
 
 const severityStyle = {
   critical: "bg-red-500/15 text-red-500 border-red-500/30",
@@ -13,10 +14,15 @@ const severityStyle = {
 
 export default function ScamTypes() {
   const [scams, setScams] = useState(null);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    api.get("/scam-types").then((r) => setScams(r.data)).catch(() => setScams([]));
+  const load = useCallback(() => {
+    setError(false);
+    setScams(null);
+    api.get("/scam-types").then((r) => setScams(r.data)).catch(() => setError(true));
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-20" data-testid="scam-types-page">
@@ -27,8 +33,12 @@ export default function ScamTypes() {
         Click any scam to see how it works, warning signs, and real cases.
       </p>
 
-      {!scams ? (
-        <div className="flex justify-center py-24"><Loader2 className="w-8 h-8 animate-spin text-sky-500" /></div>
+      {error ? (
+        <ErrorState message="We couldn't load the scam library. Check your connection and try again." onRetry={load} testId="scam-types-error" />
+      ) : !scams ? (
+        <LoadingState label="Loading scam types" />
+      ) : scams.length === 0 ? (
+        <EmptyState icon={ShieldAlert} title="No scam types published yet" message="Check back soon — new scam breakdowns are added regularly." testId="scam-types-empty" />
       ) : (
         <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {scams.map((s, i) => {

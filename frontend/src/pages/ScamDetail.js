@@ -12,9 +12,11 @@ export default function ScamDetail() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    // Reset both, or navigating from a missing scam to a valid one keeps
+    // showing "not found" forever.
+    setError(false);
     setScam(null);
     api.get(`/scam-types/${slug}`).then((r) => setScam(r.data)).catch(() => setError(true));
-    window.scrollTo(0, 0);
   }, [slug]);
 
   if (error)

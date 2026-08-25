@@ -1,16 +1,22 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Lightbulb } from "lucide-react";
 import { api } from "../lib/api";
 import { getIcon } from "../lib/icons";
 import { Badge } from "../components/ui/badge";
+import { LoadingState, ErrorState, EmptyState } from "../components/StateViews";
 
 export default function SafetyTips() {
   const [tips, setTips] = useState(null);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    api.get("/safety-tips").then((r) => setTips(r.data)).catch(() => setTips([]));
+  const load = useCallback(() => {
+    setError(false);
+    setTips(null);
+    api.get("/safety-tips").then((r) => setTips(r.data)).catch(() => setError(true));
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-20" data-testid="safety-tips-page">
@@ -20,8 +26,12 @@ export default function SafetyTips() {
         Ten habits that block the vast majority of attacks. Master these and you're safer than 95% of internet users.
       </p>
 
-      {!tips ? (
-        <div className="flex justify-center py-24"><Loader2 className="w-8 h-8 animate-spin text-sky-500" /></div>
+      {error ? (
+        <ErrorState message="We couldn't load the safety tips. Check your connection and try again." onRetry={load} testId="safety-tips-error" />
+      ) : !tips ? (
+        <LoadingState label="Loading safety tips" />
+      ) : tips.length === 0 ? (
+        <EmptyState icon={Lightbulb} title="No safety tips published yet" message="Check back soon — new guidance is added regularly." testId="safety-tips-empty" />
       ) : (
         <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6">
           {tips.map((t, i) => {
