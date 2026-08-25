@@ -170,7 +170,7 @@ export default function Home() {
       {/* HERO */}
       {/* -mt-16/pt-16 pulls the hero under the sticky navbar so the starfield
           runs behind it, the way the nav floats over the sky. */}
-      <section className="relative overflow-hidden -mt-16 pt-16">
+      <section id="hero" className="relative overflow-hidden -mt-16 pt-16">
         <SpaceBackdrop />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-24 lg:py-36 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           <div className="lg:col-span-7">
