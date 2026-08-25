@@ -51,7 +51,7 @@ export const Navbar = () => {
       <div
         className={`mx-auto transition-all duration-300 ease-out ${
           solid
-            ? "max-w-7xl rounded-2xl border border-white/10 bg-background/70 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.35)]"
+            ? "max-w-7xl rounded-2xl border border-white/10 bg-background/90 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.35)]"
             : "max-w-none rounded-none border border-transparent bg-transparent"
         }`}
       >

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { SpaceBackdrop } from "../components/SpaceBackdrop";
+import { SectionGlow } from "../components/SectionGlow";
 import { Input } from "../components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../components/ui/accordion";
 import { api, formatApiErrorDetail } from "../lib/api";
@@ -241,12 +242,18 @@ export default function Home() {
       </section>
 
       {/* FEATURES BENTO */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-24">
-        <p className="text-xs uppercase tracking-[0.25em] text-sky-500 mb-3">What SafeNet gives you</p>
-        <h2 className="font-heading text-base md:text-lg font-semibold tracking-tight max-w-lg">
-          Four tools that turn you from an easy target into a hard one.
-        </h2>
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-12 gap-6">
+      <section className="relative overflow-hidden py-28">
+        <SectionGlow />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center max-w-2xl mx-auto">
+            <span className="inline-flex items-center rounded-full border border-sky-500/30 bg-sky-500/10 px-4 py-1.5 text-xs font-medium tracking-wide text-sky-400">
+              What SafeNet gives you
+            </span>
+            <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tighter mt-6 leading-[1.15]">
+              Four tools that turn you from an easy target into a hard one.
+            </h2>
+          </div>
+          <div className="mt-14 grid grid-cols-1 md:grid-cols-12 gap-6">
           {features.map((f, i) => (
             <motion.div
               key={f.title}
@@ -269,9 +276,10 @@ export default function Home() {
                 <span className="inline-flex items-center gap-1 text-sm text-sky-500 mt-5 group-hover:gap-2.5 transition-[gap] duration-300">
                   Explore <ChevronRight className="w-4 h-4" />
                 </span>
-              </Link>
-            </motion.div>
-          ))}
+                </Link>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
