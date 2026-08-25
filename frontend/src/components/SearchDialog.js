@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
-import { Search, ShieldAlert, Lightbulb, Newspaper, Loader2 } from "lucide-react";
+import { Search, ShieldAlert, Lightbulb, Loader2 } from "lucide-react";
 import { api } from "../lib/api";
 
 export const SearchDialog = ({ open, onOpenChange }) => {
@@ -53,7 +53,7 @@ export const SearchDialog = ({ open, onOpenChange }) => {
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             autoFocus
-            placeholder="Search scams, tips, articles..."
+            placeholder="Search scams and safety tips..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="pl-9"
@@ -66,8 +66,7 @@ export const SearchDialog = ({ open, onOpenChange }) => {
             <>
               <Section icon={ShieldAlert} title="Scam Types" items={results.scams} pathFn={(it) => `/scams/${it.slug}`} />
               <Section icon={Lightbulb} title="Safety Tips" items={results.tips} pathFn={() => "/tips"} />
-              <Section icon={Newspaper} title="Blog" items={results.blog} pathFn={(it) => `/blog/${it.slug}`} />
-              {!results.scams?.length && !results.tips?.length && !results.blog?.length && (
+              {!results.scams?.length && !results.tips?.length && (
                 <p className="text-sm text-muted-foreground text-center py-4" data-testid="search-no-results">No results for "{q}"</p>
               )}
             </>
