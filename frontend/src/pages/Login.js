@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Shield, Loader2, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Loader2, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { api, formatApiErrorDetail } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
@@ -35,10 +35,7 @@ export default function Login() {
   };
 
   return (
-    <AuthLayout testId="login-page">
-      <div className="lg:hidden flex justify-center mb-8">
-        <Shield className="w-10 h-10 text-sky-500" strokeWidth={1.4} />
-      </div>
+    <AuthLayout testId="login-page" standalone>
       <h1 className="font-heading text-[1.75rem] font-bold tracking-tighter">Welcome back</h1>
       <p className="text-sm text-muted-foreground mt-2">Log in to continue to SafeNet.</p>
 

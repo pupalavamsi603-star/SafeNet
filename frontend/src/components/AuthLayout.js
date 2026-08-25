@@ -3,9 +3,14 @@ import { Shield, ShieldCheck, ScanSearch, Bot } from "lucide-react";
 import { StarField } from "./StarField";
 
 // Split-screen auth layout: brand panel (left, hidden on mobile) + form (right).
-export function AuthLayout({ children, testId }) {
+// `standalone` = rendered without the site navbar above it, so it owns the full
+// viewport height and must provide its own way back to the site.
+export function AuthLayout({ children, testId, standalone = false }) {
   return (
-    <div className="min-h-[calc(100vh-4rem)] grid grid-cols-1 lg:grid-cols-2" data-testid={testId}>
+    <div
+      className={`${standalone ? "min-h-screen" : "min-h-[calc(100vh-4rem)]"} grid grid-cols-1 lg:grid-cols-2`}
+      data-testid={testId}
+    >
       {/* Brand panel */}
       <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-[#050b16] p-12 text-white">
         {/* background decoration */}
@@ -58,7 +63,17 @@ export function AuthLayout({ children, testId }) {
       {/* Form panel */}
       <div className="relative flex items-center justify-center px-4 sm:px-8 py-14 overflow-hidden">
         <StarField density={70} color="var(--starfield-form)" useVar />
-        <div className="relative w-full max-w-[400px]">{children}</div>
+        <div className="relative w-full max-w-[400px]">
+          {standalone && (
+            <Link to="/" className="lg:hidden mb-8 flex items-center gap-2 w-fit" data-testid="auth-home-link">
+              <Shield className="w-6 h-6 text-sky-500" strokeWidth={1.6} />
+              <span className="font-heading text-base font-bold tracking-tight">
+                Safe<span className="text-sky-500">Net</span>
+              </span>
+            </Link>
+          )}
+          {children}
+        </div>
       </div>
     </div>
   );

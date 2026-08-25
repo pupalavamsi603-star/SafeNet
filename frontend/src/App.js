@@ -25,11 +25,19 @@ import NotFound from "./pages/NotFound";
 // The auth pages use their own full-height split layout and already carry a
 // copyright line, so the site footer is duplicate chrome there.
 const NO_FOOTER_ROUTES = ["/login", "/register"];
+// Login renders its own standalone shell (see AuthLayout `standalone`).
+const NO_NAVBAR_ROUTES = ["/login"];
 
 function SiteFooter() {
   const { pathname } = useLocation();
   if (NO_FOOTER_ROUTES.includes(pathname)) return null;
   return <Footer />;
+}
+
+function SiteNavbar() {
+  const { pathname } = useLocation();
+  if (NO_NAVBAR_ROUTES.includes(pathname)) return null;
+  return <Navbar />;
 }
 
 function App() {
@@ -40,7 +48,7 @@ function App() {
           <ScrollToTop />
           <div className="min-h-screen flex flex-col grain-overlay bg-background text-foreground">
             <a href="#main-content" className="skip-link">Skip to main content</a>
-            <Navbar />
+            <SiteNavbar />
             <main id="main-content" tabIndex={-1} className="flex-1">
               <Routes>
                 <Route path="/" element={<Home />} />
