@@ -18,7 +18,9 @@ export const QuizManager = ({ onChange }) => {
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
 
-  const load = () => api.get("/quiz/questions").then((r) => setItems(r.data)).catch(() => setItems([]));
+  // /quiz/questions no longer returns correct_index (it starts a graded attempt);
+  // the admin list needs the full documents.
+  const load = () => api.get("/admin/quiz").then((r) => setItems(r.data)).catch(() => setItems([]));
   useEffect(() => { load(); }, []);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY); setDialogOpen(true); };
@@ -82,23 +84,23 @@ export const QuizManager = ({ onChange }) => {
         <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto" data-testid="quiz-form-dialog">
           <DialogHeader><DialogTitle className="font-heading">{editing ? "Edit Question" : "New Question"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-1.5"><Label>Question *</Label><Textarea value={form.question} onChange={(e) => setForm({ ...form, question: e.target.value })} data-testid="quiz-form-question" /></div>
+            <div className="space-y-1.5"><Label htmlFor="quiz-question">Question *</Label><Textarea id="quiz-question" value={form.question} onChange={(e) => setForm({ ...form, question: e.target.value })} data-testid="quiz-form-question" /></div>
             {form.options.map((opt, i) => (
               <div key={i} className="space-y-1.5">
-                <Label>Option {String.fromCharCode(65 + i)}{i < 2 ? " *" : ""}</Label>
-                <Input value={opt} onChange={(e) => { const o = [...form.options]; o[i] = e.target.value; setForm({ ...form, options: o }); }} data-testid={`quiz-form-option-${i}`} />
+                <Label htmlFor={`quiz-option-${i}`}>Option {String.fromCharCode(65 + i)}{i < 2 ? " *" : ""}</Label>
+                <Input id={`quiz-option-${i}`} value={opt} onChange={(e) => { const o = [...form.options]; o[i] = e.target.value; setForm({ ...form, options: o }); }} data-testid={`quiz-form-option-${i}`} />
               </div>
             ))}
             <div className="space-y-1.5">
-              <Label>Correct answer</Label>
+              <Label htmlFor="quiz-correct">Correct answer</Label>
               <Select value={String(form.correct_index)} onValueChange={(v) => setForm({ ...form, correct_index: Number(v) })}>
-                <SelectTrigger data-testid="quiz-form-correct"><SelectValue /></SelectTrigger>
+                <SelectTrigger id="quiz-correct" data-testid="quiz-form-correct"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {form.options.map((o, i) => o.trim() && <SelectItem key={i} value={String(i)}>Option {String.fromCharCode(65 + i)}: {o.slice(0, 40)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5"><Label>Explanation *</Label><Textarea value={form.explanation} onChange={(e) => setForm({ ...form, explanation: e.target.value })} data-testid="quiz-form-explanation" /></div>
+            <div className="space-y-1.5"><Label htmlFor="quiz-explanation">Explanation *</Label><Textarea id="quiz-explanation" value={form.explanation} onChange={(e) => setForm({ ...form, explanation: e.target.value })} data-testid="quiz-form-explanation" /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>

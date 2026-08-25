@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Shield, Bot, ScanSearch, QrCode, GraduationCap, AlertTriangle, Flag, Clock, ChevronRight, Sparkles, Loader2, User, TrendingUp, FileText, Activity, Quote, Zap, ArrowRight } from "lucide-react";
+import { Shield, Bot, ScanSearch, QrCode, GraduationCap, AlertTriangle, Flag, Clock, ChevronRight, Sparkles, Loader2, User, TrendingUp, FileText, Activity, Quote, Zap, ArrowRight, Award } from "lucide-react";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 
@@ -222,6 +222,7 @@ export default function Dashboard() {
   const [tips, setTips] = useState([]);
   const [chats, setChats] = useState([]);
   const [tipIdx, setTipIdx] = useState(0);
+  const [certificate, setCertificate] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -231,6 +232,7 @@ export default function Dashboard() {
       api.get("/user/activity").then(r => setActivities(r.data)).catch(() => {}),
       api.get("/safety-tips").then(r => setTips(r.data || [])).catch(() => {}),
       api.get("/user/chat-sessions").then(r => setChats(r.data || [])).catch(() => {}),
+      api.get("/quiz/certificate").then(r => setCertificate(r.data.certificate)).catch(() => {}),
     ]).finally(() => setLoading(false));
   }, [user]);
 
@@ -270,6 +272,31 @@ export default function Dashboard() {
             ))}
           </div>
         )}
+
+        <div className="rounded-xl border bg-card p-6 flex flex-col sm:flex-row sm:items-center gap-5" data-testid="dashboard-certificate-card">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${certificate ? "bg-amber-500/10" : "bg-secondary"}`}>
+            <Award className={`w-6 h-6 ${certificate ? "text-amber-500" : "text-muted-foreground"}`} strokeWidth={1.6} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="font-heading text-base font-semibold tracking-tight">
+              {certificate ? "Cyber Safety Certificate earned" : "Earn your Cyber Safety Certificate"}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+              {certificate
+                ? `Scored ${certificate.score}/${certificate.total} on ${new Date(certificate.issued_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}. Issued once — open the quiz to download it again.`
+                : "Score 60% or higher on the Cyber Safety Quiz to earn your certificate. It's issued once."}
+            </p>
+          </div>
+          <Link
+            to="/quiz"
+            data-testid="dashboard-certificate-cta"
+            className={`shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-colors ${
+              certificate ? "border hover:border-amber-500/50" : "bg-amber-500 hover:bg-amber-600 text-white"
+            }`}
+          >
+            <GraduationCap className="w-4 h-4" /> {certificate ? "View certificate" : "Take the quiz"}
+          </Link>
+        </div>
 
         <div>
           <h2 className="font-heading text-lg font-semibold tracking-tight mb-5 flex items-center gap-2"><Zap className="w-5 h-5 text-sky-500" /> Quick Actions</h2>

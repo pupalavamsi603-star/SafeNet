@@ -239,10 +239,13 @@ class URLCheckInput(BaseModel):
 class GoogleAuthInput(BaseModel):
     credential: str = Field(min_length=20)
 
-class QuizSubmitInput(BaseModel):
-    name: str = Field(default="", max_length=60)
-    score: int = Field(ge=0)
-    total: int = Field(gt=0)
+class QuizAnswerInput(BaseModel):
+    attempt_id: str = Field(min_length=8, max_length=64)
+    question_id: str = Field(min_length=8, max_length=64)
+    answer_index: int = Field(ge=0, le=20)
+
+class QuizFinishInput(BaseModel):
+    attempt_id: str = Field(min_length=8, max_length=64)
 
 
 # ---------- auth routes ----------
@@ -349,17 +352,111 @@ async def get_scam_type(slug: str):
 async def list_safety_tips():
     return await db.safety_tips.find({}, {"_id": 0}).to_list(100)
 
-@api_router.get("/quiz/questions")
-async def quiz_questions():
-    return await db.quiz_questions.find({}, {"_id": 0}).to_list(50)
+# ---------- quiz ----------
+# The quiz is graded server-side. correct_index and explanation are never sent
+# to the browser up front, so answers can't be read out of the network tab and
+# a score can't simply be POSTed. Each run is an "attempt" the server tallies.
 
-@api_router.post("/quiz/submit")
-async def quiz_submit(data: QuizSubmitInput, user: Optional[dict] = Depends(get_optional_user), _=Depends(write_limiter)):
-    if data.score > data.total:
-        raise HTTPException(status_code=400, detail="Score cannot exceed the number of questions")
-    doc = {"id": str(uuid.uuid4()), "name": data.name, "score": data.score, "total": data.total, "user_id": _uid(user), "created_at": now_iso()}
-    await db.quiz_results.insert_one({**doc})
-    return doc
+QUIZ_PASS_RATIO = 0.6
+
+@api_router.get("/quiz/questions")
+async def quiz_questions(user: dict = Depends(get_current_user), _=Depends(write_limiter)):
+    """Start an attempt and return the questions without their answers."""
+    questions = await db.quiz_questions.find({}, {"_id": 0}).to_list(50)
+    if not questions:
+        return {"attempt_id": None, "questions": []}
+
+    attempt = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "question_ids": [q["id"] for q in questions],
+        "answers": {},
+        "score": 0,
+        "finished_at": None,
+        "created_at": now_iso(),
+    }
+    await db.quiz_attempts.insert_one({**attempt})
+    return {
+        "attempt_id": attempt["id"],
+        "questions": [{"id": q["id"], "question": q["question"], "options": q["options"]} for q in questions],
+    }
+
+async def _load_attempt(attempt_id: str, uid: str) -> dict:
+    attempt = await db.quiz_attempts.find_one({"id": attempt_id}, {"_id": 0})
+    if not attempt or attempt.get("user_id") != uid:
+        raise HTTPException(status_code=404, detail="Quiz attempt not found")
+    return attempt
+
+@api_router.post("/quiz/answer")
+async def quiz_answer(data: QuizAnswerInput, user: dict = Depends(get_current_user)):
+    """Grade a single answer, and only then reveal the solution for it."""
+    attempt = await _load_attempt(data.attempt_id, user["id"])
+    if attempt.get("finished_at"):
+        raise HTTPException(status_code=400, detail="This attempt is already finished")
+    if data.question_id not in attempt["question_ids"]:
+        raise HTTPException(status_code=400, detail="That question is not part of this attempt")
+    if data.question_id in attempt.get("answers", {}):
+        raise HTTPException(status_code=400, detail="That question was already answered")
+
+    q = await db.quiz_questions.find_one({"id": data.question_id}, {"_id": 0})
+    if not q:
+        raise HTTPException(status_code=404, detail="Question not found")
+    if data.answer_index >= len(q["options"]):
+        raise HTTPException(status_code=400, detail="Invalid answer")
+
+    correct = data.answer_index == q["correct_index"]
+    await db.quiz_attempts.update_one(
+        {"id": attempt["id"]},
+        {"$set": {f"answers.{data.question_id}": data.answer_index}, "$inc": {"score": 1 if correct else 0}},
+    )
+    return {
+        "correct": correct,
+        "correct_index": q["correct_index"],
+        "explanation": q.get("explanation", ""),
+        "score": attempt["score"] + (1 if correct else 0),
+    }
+
+@api_router.post("/quiz/finish")
+async def quiz_finish(data: QuizFinishInput, user: dict = Depends(get_current_user)):
+    """Close the attempt, record the result, and issue the certificate once."""
+    attempt = await _load_attempt(data.attempt_id, user["id"])
+    total = len(attempt["question_ids"])
+
+    if not attempt.get("finished_at"):
+        await db.quiz_attempts.update_one({"id": attempt["id"]}, {"$set": {"finished_at": now_iso()}})
+        await db.quiz_results.insert_one({
+            "id": str(uuid.uuid4()), "name": user.get("name", ""), "score": attempt["score"],
+            "total": total, "user_id": user["id"], "attempt_id": attempt["id"], "created_at": now_iso(),
+        })
+
+    score = attempt["score"]
+    passed = total > 0 and (score / total) >= QUIZ_PASS_RATIO
+    certificate = await db.certificates.find_one({"user_id": user["id"]}, {"_id": 0})
+    newly_issued = False
+
+    # First passing attempt earns the certificate. Later retakes are practice —
+    # they never issue a second one or overwrite the original.
+    if passed and certificate is None:
+        certificate = {
+            "id": str(uuid.uuid4()), "user_id": user["id"], "name": user.get("name", ""),
+            "score": score, "total": total, "issued_at": now_iso(),
+        }
+        try:
+            await db.certificates.insert_one({**certificate})
+            newly_issued = True
+        except Exception:
+            # unique index race — someone else's request got there first
+            certificate = await db.certificates.find_one({"user_id": user["id"]}, {"_id": 0})
+
+    return {
+        "score": score, "total": total, "passed": passed,
+        "certificate": certificate, "newly_issued": newly_issued,
+    }
+
+@api_router.get("/quiz/certificate")
+async def quiz_certificate(user: dict = Depends(get_current_user)):
+    cert = await db.certificates.find_one({"user_id": user["id"]}, {"_id": 0})
+    return {"certificate": cert}
 
 @api_router.get("/blog")
 async def list_blog():
@@ -794,6 +891,11 @@ async def delete_tip(item_id: str, admin: dict = Depends(require_admin)):
         raise HTTPException(status_code=404, detail="Not found")
     return {"message": "Deleted"}
 
+@api_router.get("/admin/quiz")
+async def admin_quiz_questions(admin: dict = Depends(require_admin)):
+    """Full questions, answers included — the public endpoint no longer exposes them."""
+    return await db.quiz_questions.find({}, {"_id": 0}).to_list(200)
+
 @api_router.post("/admin/quiz")
 async def create_question(data: QuizQuestionInput, admin: dict = Depends(require_admin)):
     if data.correct_index < 0 or data.correct_index >= len(data.options):
@@ -885,6 +987,9 @@ app.add_middleware(
 @app.on_event("startup")
 async def seed():
     await db.users.create_index("email", unique=True)
+    # One certificate per user — enforced here so a race can't mint two.
+    await db.certificates.create_index("user_id", unique=True)
+    await db.quiz_attempts.create_index("user_id")
     admin_email = os.environ['ADMIN_EMAIL']
     admin_password = os.environ['ADMIN_PASSWORD']
     existing = await db.users.find_one({"email": admin_email})
