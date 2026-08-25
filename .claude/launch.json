@@ -4,9 +4,27 @@
     {
       "name": "safenet-frontend",
       "runtimeExecutable": "yarn",
-      "runtimeArgs": ["start"],
+      "runtimeArgs": [
+        "start"
+      ],
       "cwd": "frontend",
       "port": 3000
+    },
+    {
+      "name": "safenet-backend",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "uvicorn",
+        "server:app",
+        "--reload",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000"
+      ],
+      "cwd": "backend",
+      "port": 8000
     }
   ]
 }

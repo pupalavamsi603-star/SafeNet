@@ -7,11 +7,11 @@ import {
   ShieldCheck, ShieldAlert, Loader2, ExternalLink, CheckCircle2,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
+import { SpaceBackdrop } from "../components/SpaceBackdrop";
 import { Input } from "../components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../components/ui/accordion";
 import { api, formatApiErrorDetail } from "../lib/api";
 
-const HERO_IMG = "https://images.unsplash.com/photo-1750969185331-e03829f72c7d?crop=entropy&cs=srgb&fm=jpg&q=85&w=1800";
 
 const features = [
   { icon: ScanSearch, title: "AI Scam Detection", desc: "Paste any suspicious message and our AI instantly rates its risk, exposes red flags, and tells you what to do.", to: "/ai", span: "md:col-span-7", accent: "text-red-500", chip: "bg-red-500/10", testid: "feature-card-detection" },
@@ -172,12 +172,10 @@ export default function Home() {
   return (
     <div data-testid="home-page">
       {/* HERO */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0">
-          <img src={HERO_IMG} alt="Abstract digital network" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-slate-950/75" />
-          <div className="absolute inset-0 hero-grid-bg opacity-40" />
-        </div>
+      {/* -mt-16/pt-16 pulls the hero under the sticky navbar so the starfield
+          runs behind it, the way the nav floats over the sky. */}
+      <section className="relative overflow-hidden -mt-16 pt-16">
+        <SpaceBackdrop />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-24 lg:py-36 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           <div className="lg:col-span-7">
             <motion.div initial="hidden" animate="show" variants={fadeUp} transition={{ duration: 0.6 }}>
@@ -221,8 +219,8 @@ export default function Home() {
                   <div className="absolute -inset-6 rounded-full border border-sky-400/40 pulse-ring" />
                 </div>
               </div>
-              <div className="absolute -top-3 -right-3 glass-panel rounded-lg px-3 py-2 text-xs text-sky-300 border-sky-400/30">Threat blocked</div>
-              <div className="absolute -bottom-3 -left-3 glass-panel rounded-lg px-3 py-2 text-xs text-emerald-300 border-emerald-400/30">Connection secure</div>
+              <div className="absolute -top-3 -right-3 rounded-lg px-3 py-2 text-xs text-sky-200 border border-sky-400/30 bg-slate-900/80 backdrop-blur-md">Threat blocked</div>
+              <div className="absolute -bottom-3 -left-3 rounded-lg px-3 py-2 text-xs text-emerald-200 border border-emerald-400/30 bg-slate-900/80 backdrop-blur-md">Connection secure</div>
             </div>
           </motion.div>
         </div>
