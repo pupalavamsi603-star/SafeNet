@@ -51,11 +51,12 @@ export const Navbar = () => {
       <div
         className={`mx-auto transition-all duration-300 ease-out ${
           solid
-            ? "max-w-7xl rounded-2xl border border-white/10 bg-background/90 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.35)]"
-            : "max-w-none rounded-none border border-transparent bg-transparent"
+            ? "max-w-7xl rounded-2xl bg-background/90 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.35)]"
+            : "max-w-none rounded-none bg-transparent"
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center h-16 gap-4">
+          <div className="flex-1 flex justify-start min-w-0">
           <Link to="/" className="flex items-center gap-2 group shrink-0" data-testid="navbar-logo-link">
             <div className="relative">
               <Shield className="w-7 h-7 text-sky-500" />
@@ -65,8 +66,10 @@ export const Navbar = () => {
               Safe<span className="text-sky-500">Net</span>
             </span>
           </Link>
+          </div>
 
-          {/* centred pill nav */}
+          {/* centred pill nav — flanked by equal-width rails so it lands on the
+              true centre line regardless of logo or action-button widths */}
           <nav className="hidden lg:flex items-center gap-0.5 rounded-full border border-white/10 bg-white/[0.04] backdrop-blur-md px-1.5 py-1.5">
             {links.map((l) => (
               <NavLink
@@ -86,7 +89,7 @@ export const Navbar = () => {
             ))}
           </nav>
 
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex-1 flex items-center justify-end gap-1.5 min-w-0">
             <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setSearchOpen(true)} data-testid="navbar-search-button" aria-label="Search">
               <Search className="w-4 h-4" />
             </Button>
