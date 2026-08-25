@@ -71,16 +71,16 @@ function URLTool() {
 
   return (
     <section className="py-24" id="url-check">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-        <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6">
+        <motion.div className="text-center" initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
           <span className="inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-4 py-1.5 text-xs font-medium tracking-wide text-sky-400">
             <Globe className="w-3.5 h-3.5" /> URL Safety Checker
           </span>
           <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tighter mt-6">Is that link safe to click?</h2>
-          <p className="text-sm text-muted-foreground mt-4 leading-relaxed max-w-md">
+          <p className="text-sm text-muted-foreground mt-4 leading-relaxed max-w-md mx-auto">
             Paste any suspicious link — SMS, email, social media — and get an instant AI safety analysis before you click.
           </p>
-          <div className="mt-7 flex gap-3">
+          <div className="mt-7 flex gap-3 max-w-xl mx-auto">
             <Input
               value={url}
               onChange={(e) => { setUrl(e.target.value); setError(""); }}
@@ -93,18 +93,13 @@ function URLTool() {
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Shield className="w-4 h-4 mr-1.5" /> Check URL</>}
             </Button>
           </div>
-          {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+          {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
         </motion.div>
 
-        <motion.div ref={resultRef} initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: 0.1 }}>
-          {!result && !loading && (
-            <div className="rounded-xl border glass-panel p-10 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-sky-500/10 flex items-center justify-center mx-auto mb-4">
-                <Globe className="w-8 h-8 text-sky-500" strokeWidth={1.4} />
-              </div>
-              <p className="text-sm text-muted-foreground">Enter a URL above and we'll check it for phishing, malware, or scam indicators — powered by AI.</p>
-            </div>
-          )}
+        {/* Results sit under the input rather than beside it — the idle
+            placeholder is gone, so nothing occupies this space until there
+            is something to show. */}
+        <div ref={resultRef} className="mt-10 text-left">
           {loading && (
             <div className="rounded-xl border glass-panel p-10 text-center flex flex-col items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center">
@@ -163,7 +158,7 @@ function URLTool() {
               </Button>
             </motion.div>
           )}
-        </motion.div>
+        </div>
       </div>
     </section>
   );
