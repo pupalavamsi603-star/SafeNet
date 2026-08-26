@@ -25,15 +25,6 @@
       ],
       "cwd": "backend",
       "port": 8000
-    },
-    {
-      "name": "safenet-backend-scratch",
-      "runtimeExecutable": "python",
-      "runtimeArgs": [
-        "C:\\Users\\pupal\\AppData\\Local\\Temp\\claude\\C--Users-pupal-Desktop-SafeNet\\0e2bca71-cc17-4ed4-a8d7-08d990cf92ef\\scratchpad\\run_backend_scratch.py"
-      ],
-      "cwd": "backend",
-      "port": 8000
     }
   ]
 }
