@@ -19,8 +19,6 @@ const quickActions = [
 function KineticGridBackground() {
   const hostRef = useRef(null);
   const canvasRef = useRef(null);
-  const mouseRef = useRef({ x: -9999, y: -9999, active: false });
-  const trailRef = useRef([]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -28,23 +26,40 @@ function KineticGridBackground() {
     const ctx = canvas?.getContext("2d");
     if (!host || !canvas || !ctx) return;
 
-    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const finePointer = window.matchMedia?.("(hover: hover) and (pointer: fine)")?.matches ?? false;
+    // Touch devices have no cursor for the grid to react to, so animating it is
+    // pure cost with nothing to show. Those get a single static paint.
+    const interactive = finePointer && !prefersReduced;
+
     const gap = 34;
     const radius = 300;
     const pull = 1.25;
+    const NEAR = 0.02;            // above this, a dot gets its own styled draw
+    const MAX_PIXELS = 4000000;   // cap on the canvas backing store
+
     let width = 1;
     let height = 1;
-    let raf = 0;
     let dots = [];
     let cols = [];
+    let raf = 0;
+    let running = false;
+    let trail = [];
+    const mouse = { x: -9999, y: -9999, active: false };
 
     const build = () => {
       const rect = host.getBoundingClientRect();
       width = Math.max(1, Math.floor(rect.width));
       height = Math.max(1, Math.floor(rect.height));
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.floor(width * dpr);
-      canvas.height = Math.floor(height * dpr);
+      // The dashboard runs several screens tall; at native DPR a full-height
+      // canvas reaches tens of millions of pixels, which is what makes phones
+      // crawl. Clamp the backing store and let it scale instead.
+      let dpr = Math.min(window.devicePixelRatio || 1, 2);
+      if (width * height * dpr * dpr > MAX_PIXELS) {
+        dpr = Math.sqrt(MAX_PIXELS / (width * height));
+      }
+      canvas.width = Math.max(1, Math.floor(width * dpr));
+      canvas.height = Math.max(1, Math.floor(height * dpr));
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -56,7 +71,7 @@ function KineticGridBackground() {
       for (let c = 0; c < colCount; c += 1) {
         const col = [];
         for (let r = 0; r < rowCount; r += 1) {
-          const dot = { hx: c * gap, hy: r * gap, x: c * gap, y: r * gap, vx: 0, vy: 0 };
+          const dot = { hx: c * gap, hy: r * gap, x: c * gap, y: r * gap, vx: 0, vy: 0, p: 0 };
           col.push(dot);
           dots.push(dot);
         }
@@ -64,87 +79,81 @@ function KineticGridBackground() {
       }
     };
 
-    const setMouse = (clientX, clientY) => {
-      const rect = canvas.getBoundingClientRect();
-      mouseRef.current = { x: clientX - rect.left, y: clientY - rect.top, active: true };
-      trailRef.current.push({ x: mouseRef.current.x, y: mouseRef.current.y, t: performance.now() });
-      if (trailRef.current.length > 60) trailRef.current.shift();
-    };
-
-    const draw = () => {
-      const mouse = mouseRef.current;
+    const render = () => {
       ctx.clearRect(0, 0, width, height);
 
       for (const dot of dots) {
-        let ax = (dot.hx - dot.x) * 0.075;
-        let ay = (dot.hy - dot.y) * 0.075;
-        if (!reducedMotion && mouse.active) {
-          const dx = mouse.x - dot.x;
-          const dy = mouse.y - dot.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < radius && dist > 0.001) {
-            const force = (1 - dist / radius) * pull;
-            ax += (dx / dist) * force;
-            ay += (dy / dist) * force;
-          }
-        }
-        dot.vx = (dot.vx + ax) * 0.82;
-        dot.vy = (dot.vy + ay) * 0.82;
-        dot.x += dot.vx;
-        dot.y += dot.vy;
+        if (!mouse.active) { dot.p = 0; continue; }
+        const dx = mouse.x - dot.x;
+        const dy = mouse.y - dot.y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        dot.p = d < radius ? 1 - d / radius : 0;
       }
 
+      // Everything away from the cursor shares one style, so it goes into a
+      // single path and a single stroke instead of thousands of draw calls.
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 0.45;
+      ctx.globalAlpha = 0.035;
+      ctx.beginPath();
       for (let c = 0; c < cols.length; c += 1) {
         for (let r = 0; r < cols[c].length; r += 1) {
           const dot = cols[c][r];
+          if (dot.p > NEAR) continue;
           const right = cols[c + 1]?.[r];
           const down = cols[c]?.[r + 1];
-          const proximity = mouse.active
-            ? Math.max(0, 1 - Math.sqrt((mouse.x - dot.x) ** 2 + (mouse.y - dot.y) ** 2) / radius)
-            : 0;
+          if (right) { ctx.moveTo(dot.x, dot.y); ctx.lineTo(right.x, right.y); }
+          if (down) { ctx.moveTo(dot.x, dot.y); ctx.lineTo(down.x, down.y); }
+        }
+      }
+      ctx.stroke();
 
-          ctx.strokeStyle = "#38bdf8";
-          ctx.lineWidth = 0.45 + proximity * 1.1;
-          ctx.globalAlpha = 0.035 + proximity * 0.26;
-
-          if (right) {
-            ctx.beginPath();
-            ctx.moveTo(dot.x, dot.y);
-            ctx.lineTo(right.x, right.y);
-            ctx.stroke();
-          }
-          if (down) {
-            ctx.beginPath();
-            ctx.moveTo(dot.x, dot.y);
-            ctx.lineTo(down.x, down.y);
-            ctx.stroke();
-          }
+      // Only the ring of dots near the cursor needs individual styling.
+      for (let c = 0; c < cols.length; c += 1) {
+        for (let r = 0; r < cols[c].length; r += 1) {
+          const dot = cols[c][r];
+          if (dot.p <= NEAR) continue;
+          const right = cols[c + 1]?.[r];
+          const down = cols[c]?.[r + 1];
+          ctx.lineWidth = 0.45 + dot.p * 1.1;
+          ctx.globalAlpha = 0.035 + dot.p * 0.26;
+          ctx.beginPath();
+          if (right) { ctx.moveTo(dot.x, dot.y); ctx.lineTo(right.x, right.y); }
+          if (down) { ctx.moveTo(dot.x, dot.y); ctx.lineTo(down.x, down.y); }
+          ctx.stroke();
         }
       }
 
+      ctx.fillStyle = "#e0f2fe";
+      ctx.globalAlpha = 0.18;
+      ctx.beginPath();
       for (const dot of dots) {
-        const proximity = mouse.active
-          ? Math.max(0, 1 - Math.sqrt((mouse.x - dot.x) ** 2 + (mouse.y - dot.y) ** 2) / radius)
-          : 0;
-        ctx.globalAlpha = 0.18 + proximity * 0.48;
-        ctx.fillStyle = "#e0f2fe";
+        if (dot.p > NEAR) continue;
+        ctx.moveTo(dot.x + 0.8, dot.y);   // keeps the arcs from joining up
+        ctx.arc(dot.x, dot.y, 0.8, 0, 2 * Math.PI);
+      }
+      ctx.fill();
+
+      for (const dot of dots) {
+        if (dot.p <= NEAR) continue;
+        ctx.globalAlpha = 0.18 + dot.p * 0.48;
         ctx.beginPath();
-        ctx.arc(dot.x, dot.y, 0.8 + proximity * 1.8, 0, 2 * Math.PI);
+        ctx.arc(dot.x, dot.y, 0.8 + dot.p * 1.8, 0, 2 * Math.PI);
         ctx.fill();
       }
 
-      if (!reducedMotion) {
+      if (interactive && trail.length > 1) {
         const now = performance.now();
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
-        for (let i = 1; i < trailRef.current.length; i += 1) {
-          const a = trailRef.current[i - 1];
-          const b = trailRef.current[i];
+        ctx.strokeStyle = "#0ea5e9";
+        ctx.lineWidth = 1.8;
+        for (let i = 1; i < trail.length; i += 1) {
+          const a = trail[i - 1];
+          const b = trail[i];
           const age = now - b.t;
           if (age > 260) continue;
           ctx.globalAlpha = Math.max(0, 1 - age / 260) * 0.5;
-          ctx.strokeStyle = "#0ea5e9";
-          ctx.lineWidth = 1.8;
           ctx.beginPath();
           ctx.moveTo(a.x, a.y);
           ctx.lineTo(b.x, b.y);
@@ -153,24 +162,99 @@ function KineticGridBackground() {
       }
 
       ctx.globalAlpha = 1;
+    };
+
+    const step = () => {
+      let moving = false;
+      for (const dot of dots) {
+        let ax = (dot.hx - dot.x) * 0.075;
+        let ay = (dot.hy - dot.y) * 0.075;
+        if (mouse.active) {
+          const dx = mouse.x - dot.x;
+          const dy = mouse.y - dot.y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < radius && d > 0.001) {
+            const force = (1 - d / radius) * pull;
+            ax += (dx / d) * force;
+            ay += (dy / d) * force;
+          }
+        }
+        dot.vx = (dot.vx + ax) * 0.82;
+        dot.vy = (dot.vy + ay) * 0.82;
+        dot.x += dot.vx;
+        dot.y += dot.vy;
+        if (!moving && (Math.abs(dot.vx) > 0.01 || Math.abs(dot.vy) > 0.01
+          || Math.abs(dot.x - dot.hx) > 0.05 || Math.abs(dot.y - dot.hy) > 0.05)) moving = true;
+      }
+      return moving;
+    };
+
+    const draw = () => {
+      const moving = step();
+      if (trail.length) {
+        const now = performance.now();
+        trail = trail.filter((pt) => now - pt.t <= 260);
+      }
+      render();
+      // The old loop ran forever once the mouse had moved even once, repainting
+      // an identical static grid every frame. Park it when nothing is moving.
+      if (mouse.active || moving || trail.length) {
+        raf = requestAnimationFrame(draw);
+      } else {
+        running = false;
+      }
+    };
+
+    const ensureRunning = () => {
+      if (running) return;
+      running = true;
       raf = requestAnimationFrame(draw);
     };
 
-    const onMove = (event) => setMouse(event.clientX, event.clientY);
-    const onLeave = () => {
-      mouseRef.current = { x: -9999, y: -9999, active: false };
-      trailRef.current = [];
+    const onMove = (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      // Ignore the pointer when it is nowhere near the grid, otherwise the loop
+      // keeps running while the cursor sits elsewhere on the page.
+      if (x < -radius || y < -radius || x > width + radius || y > height + radius) {
+        if (mouse.active) { mouse.active = false; trail = []; ensureRunning(); }
+        return;
+      }
+      mouse.x = x;
+      mouse.y = y;
+      mouse.active = true;
+      trail.push({ x, y, t: performance.now() });
+      if (trail.length > 60) trail.shift();
+      ensureRunning();
     };
-    const resizeObserver = new ResizeObserver(build);
+
+    const onLeave = () => {
+      mouse.active = false;
+      trail = [];
+      ensureRunning();   // let the dots spring home, then park
+    };
+
+    let resizeTimer = 0;
+    const onResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => { build(); render(); }, 150);
+    };
 
     build();
+    render();   // one paint; non-interactive devices stop right here
+
+    const resizeObserver = new ResizeObserver(onResize);
     resizeObserver.observe(host);
-    window.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseleave", onLeave);
-    raf = requestAnimationFrame(draw);
+
+    if (interactive) {
+      window.addEventListener("mousemove", onMove, { passive: true });
+      document.addEventListener("mouseleave", onLeave);
+    }
 
     return () => {
       cancelAnimationFrame(raf);
+      clearTimeout(resizeTimer);
       resizeObserver.disconnect();
       window.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseleave", onLeave);
