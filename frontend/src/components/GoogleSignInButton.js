@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { api, formatApiErrorDetail } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import { canUseNativeGoogle, nativeGoogleSignIn } from "../lib/nativeGoogle";
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 const GSI_SRC = "https://accounts.google.com/gsi/client";
@@ -27,11 +28,22 @@ function loadGsi() {
 export function GoogleSignInButton({ text = "continue_with" }) {
   const btnRef = useRef(null);
   const [failed, setFailed] = useState(false);
+  const [busy, setBusy] = useState(false);
   const { setUser } = useAuth();
   const navigate = useNavigate();
+  const native = canUseNativeGoogle();
+
+  // Shared by both flows: exchange a Google ID token for a SafeNet session.
+  const submitCredential = async (credential) => {
+    const { data } = await api.post("/auth/google", { credential });
+    setUser(data);
+    toast.success(`Welcome, ${data.name}!`);
+    navigate(data.role === "admin" ? "/admin" : "/dashboard");
+  };
 
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) return;
+    // On Android the GIS script is useless — see lib/nativeGoogle.
+    if (!GOOGLE_CLIENT_ID || native) return;
     let cancelled = false;
     loadGsi()
       .then(() => {
@@ -40,10 +52,7 @@ export function GoogleSignInButton({ text = "continue_with" }) {
           client_id: GOOGLE_CLIENT_ID,
           callback: async ({ credential }) => {
             try {
-              const { data } = await api.post("/auth/google", { credential });
-              setUser(data);
-              toast.success(`Welcome, ${data.name}!`);
-              navigate(data.role === "admin" ? "/admin" : "/dashboard");
+              await submitCredential(credential);
             } catch (err) {
               toast.error(formatApiErrorDetail(err.response?.data?.detail));
             }
@@ -61,7 +70,43 @@ export function GoogleSignInButton({ text = "continue_with" }) {
       })
       .catch(() => setFailed(true));
     return () => { cancelled = true; };
-  }, [navigate, setUser, text]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate, setUser, text, native]);
+
+  // Android: our own button driving the platform account picker.
+  if (native) {
+    const onPress = async () => {
+      if (busy) return;
+      setBusy(true);
+      try {
+        await submitCredential(await nativeGoogleSignIn());
+      } catch (err) {
+        const detail = err?.response?.data?.detail;
+        if (detail) {
+          toast.error(formatApiErrorDetail(detail));
+        } else {
+          // Surface what Android actually said. Swallowing it behind a friendly
+          // message made this impossible to diagnose from the device.
+          const raw = err?.message || String(err);
+          console.error("[google-signin]", err);
+          toast.error(`Google sign-in failed: ${raw}`, { duration: 12000 });
+        }
+      } finally {
+        setBusy(false);
+      }
+    };
+    return (
+      <button
+        type="button"
+        onClick={onPress}
+        disabled={busy}
+        className="w-full h-11 rounded-full border bg-background text-sm font-medium flex items-center justify-center gap-2.5 hover:bg-secondary/60 transition-colors duration-200 disabled:opacity-60"
+        data-testid="google-signin-native"
+      >
+        <GoogleLogo /> {busy ? "Signing in…" : "Continue with Google"}
+      </button>
+    );
+  }
 
   if (!GOOGLE_CLIENT_ID || failed) {
     return (
