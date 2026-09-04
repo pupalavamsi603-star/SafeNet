@@ -53,6 +53,37 @@ for byte what it was before, and cookies are still set on both paths. The releva
 > Requires the backend change to be deployed. An APK pointed at an older backend will fail
 > to log in, because the server will not hand over the tokens.
 
+## Google Sign-In
+
+The website uses the Google Identity Services web SDK. **That cannot work in the APK**:
+the WebView is served from `https://localhost`, which no OAuth client can authorise
+(Google answers `Error 400: origin_mismatch`), and Google refuses OAuth inside embedded
+WebViews regardless — the flow escapes to Chrome and the credential never returns.
+
+Android therefore uses the platform account picker (`@capgo/capacitor-social-login`,
+see `frontend/src/lib/nativeGoogle.js`) and posts the resulting ID token to the same
+`/api/auth/google`. The token is requested with the **web** client ID as the server
+client, so its `aud` is unchanged and the backend needed no modification.
+
+This requires an **Android OAuth client** in the same Google Cloud project as the web
+client ID. Without it Google returns `[16] Account reauth failed`. Create it under
+Google Auth Platform → Clients → Create client → Android:
+
+| Field | Value |
+|---|---|
+| Package name | `com.safenet.app` |
+| SHA-1 | fingerprint of the signing key (below) |
+
+```bash
+keytool -list -v -keystore safenet-release.keystore -alias safenet
+```
+
+The SHA-1 is tied to the signing key, so **a new keystore needs a new Android client** —
+including Play App Signing, which re-signs the app with Google's own key.
+
+If sign-in fails, the app now surfaces Android's verbatim error, and the plugin logs the
+package, SHA-1 and client ID it actually used under logcat tag `GoogleProvider`.
+
 ## Signing
 
 `yarn apk` signs with `frontend/android/safenet-release.keystore`, whose passwords are in
