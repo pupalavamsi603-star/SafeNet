@@ -92,6 +92,18 @@ CORS_ORIGINS=http://localhost:3000
 REACT_APP_BACKEND_URL=http://localhost:8000
 ```
 
+## 📱 Android App
+
+The same frontend ships as an Android APK via Capacitor:
+
+```bash
+cd frontend
+yarn apk
+```
+
+See **[MOBILE.md](MOBILE.md)** for the backend URL setup, signing, and how auth differs
+on mobile (bearer tokens instead of cookies).
+
 ## 📁 Project Structure
 
 ```
@@ -106,7 +118,10 @@ SafeNet/
 │   │   ├── components/  # Navbar, Footer + shadcn/ui components
 │   │   ├── context/     # AuthContext + ThemeContext
 │   │   └── lib/         # API client (axios)
+│   ├── android/         # Capacitor Android project (APK build)
+│   ├── scripts/build-apk.js
 │   └── package.json
+├── MOBILE.md            # Android build & release guide
 └── memory/
     └── PRD.md           # Product requirements document
 ```

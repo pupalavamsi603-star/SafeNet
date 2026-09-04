@@ -2,9 +2,21 @@
 <html lang="en">
     <head>
         <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#000000" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="theme-color" content="#0B1120" />
         <meta name="description" content="A product of emergent.sh" />
+        <script>
+            // ThemeProvider applies `.dark` from a useEffect, i.e. after the first
+            // paint, so every cold start flashed the light theme before going dark.
+            // Same read as ThemeContext, run before anything renders.
+            try {
+                if ((localStorage.getItem("safenet-theme") || "dark") === "dark") {
+                    document.documentElement.classList.add("dark");
+                }
+            } catch (e) {
+                document.documentElement.classList.add("dark");
+            }
+        </script>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet" />

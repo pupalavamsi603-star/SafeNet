@@ -87,3 +87,15 @@ frontend/node_modules/.cache/default-development/4.pack
 credentials.json
 *.key
 .credentials
+
+# Android (Capacitor) build — generated output, machine paths and signing secrets.
+# The android/ project itself IS committed; only these are excluded.
+frontend/android/build/
+frontend/android/app/build/
+frontend/android/.gradle/
+frontend/android/local.properties
+frontend/android/keystore.properties
+frontend/android/app/src/main/assets/public/
+frontend/android/app/src/main/assets/capacitor.config.json
+*.keystore
+*.jks

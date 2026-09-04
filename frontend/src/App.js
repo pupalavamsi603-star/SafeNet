@@ -7,6 +7,7 @@ import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/Footer";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { SplashGate } from "./components/SplashGate";
 import Home from "./pages/Home";
 import About from "./pages/About";
 import ScamTypes from "./pages/ScamTypes";
@@ -43,35 +44,37 @@ function SiteNavbar() {
 function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <ScrollToTop />
-          <div className="min-h-screen flex flex-col grain-overlay bg-background text-foreground">
-            <a href="#main-content" className="skip-link">Skip to main content</a>
-            <SiteNavbar />
-            <main id="main-content" tabIndex={-1} className="flex-1">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/scams" element={<ScamTypes />} />
-                <Route path="/scams/:slug" element={<ScamDetail />} />
-                <Route path="/tips" element={<SafetyTips />} />
-                <Route path="/ai" element={<AIChat />} />
-                <Route path="/quiz" element={<ProtectedRoute><Quiz /></ProtectedRoute>} />
-                <Route path="/report" element={<ReportScam />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </main>
-            <SiteFooter />
-          </div>
-          <Toaster position="top-right" richColors />
-        </BrowserRouter>
-      </AuthProvider>
+      <SplashGate>
+        <AuthProvider>
+          <BrowserRouter>
+            <ScrollToTop />
+            <div className="min-h-screen flex flex-col grain-overlay bg-background text-foreground">
+              <a href="#main-content" className="skip-link">Skip to main content</a>
+              <SiteNavbar />
+              <main id="main-content" tabIndex={-1} className="flex-1">
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/scams" element={<ScamTypes />} />
+                  <Route path="/scams/:slug" element={<ScamDetail />} />
+                  <Route path="/tips" element={<SafetyTips />} />
+                  <Route path="/ai" element={<AIChat />} />
+                  <Route path="/quiz" element={<ProtectedRoute><Quiz /></ProtectedRoute>} />
+                  <Route path="/report" element={<ReportScam />} />
+                  <Route path="/contact" element={<Contact />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                  <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </main>
+              <SiteFooter />
+            </div>
+            <Toaster position="top-right" richColors />
+          </BrowserRouter>
+        </AuthProvider>
+      </SplashGate>
     </ThemeProvider>
   );
 }

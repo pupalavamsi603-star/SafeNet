@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { GraduationCap, CheckCircle2, XCircle, ChevronRight, RotateCcw, Download, Award, ShieldCheck, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, formatApiErrorDetail } from "../lib/api";
+import { saveDataUrl } from "../lib/nativeFiles";
 import { Button } from "../components/ui/button";
 import { Progress } from "../components/ui/progress";
 import { LoadingState, ErrorState, EmptyState } from "../components/StateViews";
@@ -68,7 +69,8 @@ function drawCertificate(canvas, name, score, total, issuedAt) {
   ctx.fillText("✓", W / 2, 742);
 }
 
-// Draws the earned certificate and offers it as a PNG download.
+// Draws the earned certificate and offers it as a PNG download. On Android the
+// download goes through the system share sheet — see lib/nativeFiles.
 function CertificatePanel({ certificate }) {
   const canvasRef = useRef(null);
 
@@ -78,11 +80,13 @@ function CertificatePanel({ certificate }) {
     }
   }, [certificate]);
 
-  const download = () => {
-    const link = document.createElement("a");
-    link.download = `SafeNet-Certificate-${(certificate.name || "learner").replace(/\s+/g, "-")}.png`;
-    link.href = canvasRef.current.toDataURL("image/png");
-    link.click();
+  const download = async () => {
+    const filename = `SafeNet-Certificate-${(certificate.name || "learner").replace(/\s+/g, "-")}.png`;
+    try {
+      await saveDataUrl(canvasRef.current.toDataURL("image/png"), filename, "Save your certificate");
+    } catch (e) {
+      toast.error("Could not save the certificate. Please try again.");
+    }
   };
 
   const issued = certificate.issued_at

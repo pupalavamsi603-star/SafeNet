@@ -158,3 +158,156 @@ main:focus-visible {
         scroll-behavior: auto !important;
     }
 }
+
+/* ---------- Android app shell ---------- */
+
+/* The APK runs edge to edge under a transparent status bar (Android 15+ enforces
+   this and ignores setBackgroundColor), so the page paints its own navy up there
+   and the sticky header is pushed clear of the clock. `is-native` is set by
+   lib/nativeShell.js, so none of this touches the website. */
+html.is-native {
+    /* Verified on device: Android reports the real inset here (~50px on a 520dpi
+       phone). The floor only matters for builds that report 0. */
+    --safe-top: max(env(safe-area-inset-top), 24px);
+}
+
+html.is-native footer {
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* backdrop-filter over content that is actively scrolling is the single most
+   expensive thing the navbar does on a phone — it re-blurs the backdrop every
+   frame (12ms of GPU time per frame, measured). A near-opaque fill is visually
+   almost identical at this blur radius and costs nothing. The website keeps
+   the real blur. */
+html.is-native .app-header__bar {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+html.is-native .app-header__bar[data-solid="true"] {
+    background-color: hsl(var(--background) / 0.97);
+}
+
+/* The bar sits over the always-dark hero, where the theme background would be
+   the wrong colour in light mode. */
+html.is-native .dark .app-header__bar[data-solid="true"],
+html.is-native .app-header__bar[data-solid="true"].bg-slate-950\/80 {
+    background-color: rgb(2 6 23 / 0.97);
+}
+
+/* ---------- launch animation (APK only) ---------- */
+
+/* Only the thin ring outline is stroke-drawn. The shield body and the tick arrive
+   on transform + opacity, which the compositor handles without repainting the path
+   every frame — stroke-dashoffset on the thick tick was the last visible stutter. */
+
+.safenet-splash {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0B1120;
+    animation: safenet-splash-out 0.5s cubic-bezier(0.4, 0, 1, 1) 1.85s both;
+}
+
+.safenet-splash__stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.4rem;
+    will-change: transform, opacity;
+    animation: safenet-splash-zoom 0.55s cubic-bezier(0.32, 0, 0.67, 0) 1.85s both;
+}
+
+.safenet-splash__mark {
+    width: 40vw;
+    max-width: 172px;
+    height: auto;
+    overflow: visible;
+}
+
+.safenet-splash__word {
+    margin: 0;
+    color: #E2E8F0;
+    font-size: 1.3rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    will-change: transform, opacity;
+    animation: safenet-word-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) 1.15s both;
+}
+
+/* pathLength="1" normalises the path so a single dash spans it exactly. Only the
+   thin ring is drawn this way: stroke-dashoffset cannot be composited, so every
+   frame re-rasterises the path. That is cheap for a 3.4-unit line and was visibly
+   not cheap for the thick round-capped tick sitting on top of the filled shield. */
+.safenet-splash__ring {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+}
+
+.safenet-splash__ring {
+    opacity: 0.5;
+    animation: safenet-draw 0.75s cubic-bezier(0.65, 0, 0.35, 1) 0.15s forwards;
+}
+
+/* Scales about its own centre rather than the SVG origin. */
+.safenet-splash__body {
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: center;
+    will-change: transform, opacity;
+    animation: safenet-body-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.62s both;
+}
+
+/* Transform + opacity only, so this runs entirely on the compositor. The slight
+   overshoot makes it land like a stamp rather than fade in limply. */
+.safenet-splash__check {
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: center;
+    will-change: transform, opacity;
+    animation: safenet-check-in 0.44s cubic-bezier(0.34, 1.56, 0.64, 1) 1.0s both;
+}
+
+@keyframes safenet-draw {
+    to { stroke-dashoffset: 0; }
+}
+
+@keyframes safenet-check-in {
+    from { opacity: 0; transform: scale(0.5); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes safenet-body-in {
+    from { opacity: 0; transform: scale(0.82); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes safenet-word-in {
+    from { opacity: 0; transform: translate3d(0, 10px, 0); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes safenet-splash-zoom {
+    from { transform: scale(1); }
+    to { transform: scale(1.14); }
+}
+
+@keyframes safenet-splash-out {
+    to { opacity: 0; }
+}
+
+/* The global reduced-motion rule collapses every animation to ~0ms, which would
+   leave the strokes undrawn. Show the finished mark instead. */
+@media (prefers-reduced-motion: reduce) {
+    .safenet-splash__ring {
+        stroke-dashoffset: 0;
+    }
+    .safenet-splash__body,
+    .safenet-splash__check {
+        opacity: 1;
+    }
+}

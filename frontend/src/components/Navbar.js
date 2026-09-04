@@ -22,8 +22,19 @@ const links = [
 function useScrolled(threshold = 12) {
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > threshold);
-    onScroll();
+    // Coalesced to one read per frame; the raw listener fired far more often
+    // than the screen refreshes.
+    let ticking = false;
+    const apply = () => {
+      ticking = false;
+      setScrolled(window.scrollY > threshold);
+    };
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(apply);
+    };
+    apply();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, [threshold]);
@@ -39,20 +50,37 @@ function useOverDarkHero() {
   const [over, setOver] = useState(false);
 
   useEffect(() => {
-    const compute = () => {
-      const hero = document.getElementById("hero");
-      if (!hero) { setOver(false); return; }
+    // getBoundingClientRect() in the scroll handler forced a synchronous layout on
+    // every scroll event, which was the main source of scroll stutter. Measure the
+    // hero once into document space instead, then compare against scrollY — no
+    // layout read while scrolling.
+    let heroBottom = null;
+    let ticking = false;
+
+    const apply = () => {
+      ticking = false;
       // 80px ~= the navbar band plus its floating offset
-      setOver(hero.getBoundingClientRect().bottom > 80);
+      setOver(heroBottom !== null && heroBottom - window.scrollY > 80);
     };
-    compute();
-    const raf = requestAnimationFrame(compute); // hero may mount a tick later
-    window.addEventListener("scroll", compute, { passive: true });
-    window.addEventListener("resize", compute);
+    const measure = () => {
+      const hero = document.getElementById("hero");
+      heroBottom = hero ? hero.getBoundingClientRect().bottom + window.scrollY : null;
+      apply();
+    };
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(apply);
+    };
+
+    measure();
+    const raf = requestAnimationFrame(measure); // hero may mount a tick later
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", measure);
     return () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener("scroll", compute);
-      window.removeEventListener("resize", compute);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", measure);
     };
   }, [pathname]);
 
@@ -80,16 +108,25 @@ export const Navbar = () => {
 
   return (
     <header
-      className="sticky top-0 z-50 transition-[padding] duration-300 ease-out"
-      style={{ paddingTop: solid ? "0.75rem" : "0rem", paddingLeft: solid ? "0.75rem" : "0rem", paddingRight: solid ? "0.75rem" : "0rem" }}
+      className="app-header sticky top-0 z-50"
+      style={{
+        // Constant geometry. Transitioning padding here and max-width below meant
+        // every frame of the scroll transition reflowed the page, which is what
+        // made the bar visibly shift. Only paint properties animate now.
+        // --safe-top is 0px on the web and the Android status-bar inset in the APK.
+        paddingTop: `calc(0.75rem + var(--safe-top, 0px))`,
+        paddingLeft: "0.75rem",
+        paddingRight: "0.75rem",
+      }}
       data-testid="main-navbar"
       data-scrolled={scrolled ? "true" : "false"}
     >
       <div
-        className={`mx-auto transition-all duration-300 ease-out ${
+        data-solid={solid ? "true" : "false"}
+        className={`app-header__bar mx-auto max-w-7xl rounded-2xl transition-[background-color,box-shadow] duration-300 ease-out ${
           solid
-            ? `max-w-7xl rounded-2xl backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.35)] ${onDark ? "bg-slate-950/80" : "bg-background/90"}`
-            : "max-w-none rounded-none bg-transparent"
+            ? `backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.35)] ${onDark ? "bg-slate-950/80" : "bg-background/90"}`
+            : "bg-transparent"
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center h-16 gap-4">

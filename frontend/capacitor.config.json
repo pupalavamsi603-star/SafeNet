@@ -1,0 +1,25 @@
+{
+  "appId": "com.safenet.app",
+  "appName": "SafeNet",
+  "webDir": "build",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0B1120"
+  },
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "backgroundColor": "#0B1120",
+      "androidSplashResourceName": "splash",
+      "showSpinner": false,
+      "androidScaleType": "CENTER_CROP"
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0B1120"
+    }
+  }
+}

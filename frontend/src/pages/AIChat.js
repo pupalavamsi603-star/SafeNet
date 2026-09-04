@@ -5,6 +5,7 @@ import { Html5Qrcode } from "html5-qrcode";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import { API, api, getRetryAfterSeconds } from "../lib/api";
+import { nativeAuthHeaders } from "../lib/nativeAuth";
 import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
@@ -153,9 +154,12 @@ function ChatTab({ resumeSession }) {
       // not apply here — refresh and retry once by hand.
       const post = () => fetch(`${API}/ai/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        // Raw fetch skips the axios interceptors, so the native bearer header
+        // (a no-op on web) has to be attached by hand here too.
+        headers: { "Content-Type": "application/json", ...nativeAuthHeaders() },
         credentials: "include",
-        // user_id is intentionally not sent — the server derives it from the auth cookie.
+        // user_id is intentionally not sent — the server derives it from the session
+        // (auth cookie on web, bearer token on native).
         body: JSON.stringify({ session_id: activeSessionId, message: msg }),
       });
       let res = await post();

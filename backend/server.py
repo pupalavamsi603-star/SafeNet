@@ -80,6 +80,26 @@ def _bearer_or_cookie_token(request: Request) -> Optional[str]:
             token = auth_header[7:]
     return token or None
 
+# --- mobile (Capacitor APK) token mode ---
+# The Android WebView serves the bundled app from https://localhost, so every call
+# to this API is cross-site and the httpOnly auth cookies get dropped. Clients that
+# identify themselves with `X-Client: mobile` therefore also get the tokens in the
+# response body and send them back as `Authorization: Bearer` / `X-Refresh-Token`.
+# Browsers keep using cookies exactly as before.
+def _wants_mobile_tokens(request: Request) -> bool:
+    return request.headers.get("X-Client", "").strip().lower() == "mobile"
+
+def issue_auth(request: Request, response: Response, body: dict, user_id: str, email: str) -> dict:
+    """Set auth cookies and, for mobile clients, echo the tokens in the body."""
+    access, refresh_tok = create_access_token(user_id, email), create_refresh_token(user_id)
+    set_auth_cookies(response, access, refresh_tok)
+    if _wants_mobile_tokens(request):
+        return {**body, "access_token": access, "refresh_token": refresh_tok}
+    return body
+
+def _refresh_token_from(request: Request) -> Optional[str]:
+    return request.cookies.get("refresh_token") or request.headers.get("X-Refresh-Token") or None
+
 async def get_current_user(request: Request) -> dict:
     token = _bearer_or_cookie_token(request)
     if not token:
@@ -250,26 +270,25 @@ class QuizFinishInput(BaseModel):
 
 # ---------- auth routes ----------
 @api_router.post("/auth/register")
-async def register(data: RegisterInput, response: Response, _=Depends(auth_limiter)):
+async def register(data: RegisterInput, request: Request, response: Response, _=Depends(auth_limiter)):
     email = data.email.lower().strip()
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="An account with this email already exists")
     user = {"id": str(uuid.uuid4()), "name": data.name.strip(), "email": email, "role": "user", "created_at": now_iso()}
     await db.users.insert_one({**user, "password_hash": hash_password(data.password)})
-    set_auth_cookies(response, create_access_token(user["id"], email), create_refresh_token(user["id"]))
-    return user
+    return issue_auth(request, response, user, user["id"], email)
 
 @api_router.post("/auth/login")
-async def login(data: LoginInput, response: Response, _=Depends(auth_limiter)):
+async def login(data: LoginInput, request: Request, response: Response, _=Depends(auth_limiter)):
     email = data.email.lower().strip()
     user = await db.users.find_one({"email": email})
     if not user or not user.get("password_hash") or not verify_password(data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    set_auth_cookies(response, create_access_token(user["id"], email), create_refresh_token(user["id"]))
-    return {"id": user["id"], "name": user["name"], "email": user["email"], "role": user["role"]}
+    body = {"id": user["id"], "name": user["name"], "email": user["email"], "role": user["role"]}
+    return issue_auth(request, response, body, user["id"], email)
 
 @api_router.post("/auth/google")
-async def google_auth(data: GoogleAuthInput, response: Response, _=Depends(auth_limiter)):
+async def google_auth(data: GoogleAuthInput, request: Request, response: Response, _=Depends(auth_limiter)):
     if not GOOGLE_CLIENT_ID:
         raise HTTPException(status_code=503, detail="Google sign-in is not configured on the server")
     import httpx
@@ -303,12 +322,12 @@ async def google_auth(data: GoogleAuthInput, response: Response, _=Depends(auth_
             "auth_provider": "google", "picture": info.get("picture", ""), "created_at": now_iso(),
         }
         await db.users.insert_one({**user})
-    set_auth_cookies(response, create_access_token(user["id"], email), create_refresh_token(user["id"]))
-    return {"id": user["id"], "name": user["name"], "email": user["email"], "role": user.get("role", "user")}
+    body = {"id": user["id"], "name": user["name"], "email": user["email"], "role": user.get("role", "user")}
+    return issue_auth(request, response, body, user["id"], email)
 
 @api_router.post("/auth/refresh")
 async def refresh(request: Request, response: Response, _=Depends(auth_limiter)):
-    token = request.cookies.get("refresh_token")
+    token = _refresh_token_from(request)
     if not token:
         raise HTTPException(status_code=401, detail="No refresh token")
     try:
@@ -323,8 +342,7 @@ async def refresh(request: Request, response: Response, _=Depends(auth_limiter))
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     # rotate both tokens
-    set_auth_cookies(response, create_access_token(user["id"], user["email"]), create_refresh_token(user["id"]))
-    return user
+    return issue_auth(request, response, user, user["id"], user["email"])
 
 @api_router.post("/auth/logout")
 async def logout(response: Response):
@@ -967,6 +985,12 @@ app.include_router(api_router)
 _cors_origins = os.environ.get('CORS_ORIGINS', '').strip()
 _allowed_origins = [o.strip().rstrip('/') for o in _cors_origins.split(',') if o.strip()] or ["http://localhost:3000"]
 
+# The Capacitor Android build serves the bundled app from these origins. It uses
+# bearer tokens rather than cookies, but the browser still needs the CORS grant.
+for _native_origin in ("http://localhost", "https://localhost", "capacitor://localhost"):
+    if _native_origin not in _allowed_origins:
+        _allowed_origins.append(_native_origin)
+
 # Vercel generates a different *.vercel.app URL for every branch/preview deployment
 # (e.g. safe-net-git-main-vamsi13.vercel.app, safe-6kge5vkpk-vamsi13.vercel.app).
 # Exact-matching CORS_ORIGINS breaks every time that URL changes, so also allow any
@@ -980,7 +1004,7 @@ app.add_middleware(
     allow_origin_regex=_vercel_origin_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_headers=["Content-Type", "Authorization", "X-Client", "X-Refresh-Token"],
 )
 
 

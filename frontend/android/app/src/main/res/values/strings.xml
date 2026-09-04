@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SafeNet</string>
+    <string name="title_activity_main">SafeNet</string>
+    <string name="package_name">com.safenet.app</string>
+    <string name="custom_url_scheme">com.safenet.app</string>
+</resources>
