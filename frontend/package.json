@@ -74,7 +74,8 @@
     "start": "craco start",
     "build": "node scripts/build.js",
     "apk": "node scripts/build-apk.js",
-    "test": "craco test"
+    "test": "craco test",
+    "lint": "node node_modules/eslint/bin/eslint.js src/components/security src/pages/Home.js src/pages/AIChat.js src/components/Navbar.js src/components/Footer.js src/context/ThemeContext.js src/lib/api.js"
   },
   "browserslist": {
     "production": [

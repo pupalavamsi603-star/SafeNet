@@ -2,3 +2,4 @@
 #   pip install -r requirements.txt -r requirements-dev.txt
 pytest==8.4.2
 pytest-xdist==3.8.0
+requests==2.34.2

@@ -1,11 +1,13 @@
 # 🛡️ SafeNet — AI-Powered Cyber Safety Platform
 
-A modern, fully responsive full-stack web application for cyber safety awareness and online scam education — powered by Google Gemini AI.
+A responsive AI-powered cybersecurity platform with URL checks, QR scanning, message analysis and a cybersecurity assistant, powered by OpenRouter.
 
 ## ✨ Features
 
 - **11 Scam Type Guides** — Phishing, OTP Fraud, UPI Scams, Fake Jobs, Lottery, Investment/Crypto, Tech Support, Social Media, Fake Shopping, QR Code, SIM Swap
-- **AI Chatbot (SafeBot)** — Streaming Gemini-powered cybersecurity assistant
+- **Homepage Security Workspace** — Scan URL, Scan QR Code, Scan Text / Message and Ask AI, sharing the existing tools with `/ai`
+- **URL & QR Analysis** — AI risk assessment and URL heuristics; QR uploads and camera decoding use html5-qrcode
+- **AI Chatbot (SafeBot)** — Streaming OpenRouter-powered cybersecurity assistant
 - **AI Scam Detector** — Paste any suspicious message → instant risk score, red flags & advice
 - **Cyber Safety Quiz** — 15 MCQs with score + downloadable canvas certificate
 - **Report a Scam** — Anonymous scam reporting with screenshot upload
@@ -13,7 +15,7 @@ A modern, fully responsive full-stack web application for cyber safety awareness
 - **Admin Dashboard** — Full CRUD for scam articles, quiz, reports management, user management
 - **JWT Auth** — Email/password with httpOnly cookie sessions, silent refresh (7-day sessions)
 - **Rate Limiting** — Per-IP limits on AI & auth endpoints with friendly cooldown UI
-- **Dark/Light Mode** — Default dark, toggle in navbar
+- **Dark/Light Mode** — Default light, saved preferences and navbar toggle preserved
 - **Global Search** — Across scams, tips & blog
 
 ## 🛠️ Tech Stack
@@ -23,16 +25,16 @@ A modern, fully responsive full-stack web application for cyber safety awareness
 | Frontend | React 19, Tailwind CSS, shadcn/ui, framer-motion, Recharts |
 | Backend | FastAPI (Python), MongoDB (Motor async) |
 | Auth | JWT (PyJWT), bcrypt, httpOnly cookies |
-| AI | Google Gemini via `google-genai` SDK (gemini-2.0-flash, fallback gemini-1.5-flash) |
+| AI | OpenRouter via OpenAI Python SDK (`OPENROUTER_MODEL`, default `openai/gpt-4o-mini`) |
 | Icons | lucide-react |
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+ & Yarn
+- Node.js 22+ & Yarn
 - Python 3.10+
 - MongoDB instance (local or Atlas)
-- Google Gemini API key
+- OpenRouter API key
 
 ### Backend Setup
 
@@ -78,7 +80,8 @@ yarn start
 ```
 MONGO_URL=mongodb://localhost:27017
 DB_NAME=safenet
-GEMINI_API_KEY=your_gemini_api_key
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_MODEL=openai/gpt-4o-mini
 JWT_SECRET=your_jwt_secret_here
 ADMIN_EMAIL=admin@safenet.com
 ADMIN_PASSWORD=YourAdminPassword
@@ -137,3 +140,25 @@ pytest tests/backend_test.py -v
 ## 📝 License
 
 MIT
+
+## Validation and deployment
+
+Run `yarn lint`, `yarn test --watchAll=false --runInBand`, and `yarn build` in `frontend`.
+Lint covers the security workspace and the shared files changed by this restructure.
+This project uses JavaScript, so there is no TypeScript type-check command.
+
+Install `backend/requirements-dev.txt` as well as the runtime requirements for backend tests.
+Export `ADMIN_EMAIL` and `ADMIN_PASSWORD` from your backend environment before running pytest.
+Tests target `http://localhost:8000` unless `REACT_APP_BACKEND_URL` is set.
+Start the backend with a separate `DB_NAME` for tests: the suite creates users, reports,
+chat history and temporary admin content. Do not run mutation tests against production data.
+
+On Vercel, set `REACT_APP_BACKEND_URL` to the HTTPS origin of the deployed backend before building.
+If omitted, requests use same-origin `/api`, which requires a reverse proxy to FastAPI.
+The existing Vercel SPA rewrite does not supply that proxy, so Vercel needs the explicit backend URL.
+Render uses `render.yaml`; configure the MongoDB, JWT, admin, OpenRouter and CORS variables there.
+Use `ENVIRONMENT=production` for secure cross-site auth cookies. Google sign-in additionally
+uses matching `GOOGLE_CLIENT_ID` and `REACT_APP_GOOGLE_CLIENT_ID` values.
+Only public origins and OAuth client IDs belong in frontend variables. AI keys stay server-side.
+
+See [the implementation and verification record](test_reports/homepage-restructure.md) for the feature map and test results.

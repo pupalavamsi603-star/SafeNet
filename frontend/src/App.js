@@ -48,7 +48,7 @@ function App() {
         <AuthProvider>
           <BrowserRouter>
             <ScrollToTop />
-            <div className="min-h-screen flex flex-col grain-overlay bg-background text-foreground">
+            <div className="min-h-screen flex flex-col bg-background text-foreground">
               <a href="#main-content" className="skip-link">Skip to main content</a>
               <SiteNavbar />
               <main id="main-content" tabIndex={-1} className="flex-1">

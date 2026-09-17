@@ -8,7 +8,7 @@ import time
 import pytest
 import requests
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://protect-online-6.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'http://localhost:8000').rstrip('/')
 API = f"{BASE_URL}/api"
 
 # Admin credentials come from the environment — never hardcode them here.
@@ -43,6 +43,11 @@ class TestHealth:
         assert r.status_code == 200
         data = r.json()
         assert data.get("status") == "healthy"
+
+    def test_cors_exposes_retry_interval(self):
+        r = requests.get(f"{API}/", headers={"Origin": "http://localhost:3000"}, timeout=10)
+        assert r.headers["Access-Control-Allow-Origin"] == "http://localhost:3000"
+        assert "Retry-After" in r.headers["Access-Control-Expose-Headers"]
 
 
 # ---------- auth ----------
@@ -116,12 +121,15 @@ class TestPublicContent:
         assert r.status_code == 200
         assert len(r.json()) == 10
 
-    def test_quiz_questions_count(self):
-        r = requests.get(f"{API}/quiz/questions", timeout=10)
+    def test_quiz_questions_count(self, user_session):
+        assert requests.get(f"{API}/quiz/questions", timeout=10).status_code == 401
+        session, _ = user_session
+        r = session.get(f"{API}/quiz/questions", timeout=10)
         assert r.status_code == 200
-        qs = r.json()
+        assert r.json()["attempt_id"]
+        qs = r.json()["questions"]
         assert len(qs) == 15
-        assert "correct_index" in qs[0]
+        assert all("correct_index" not in q for q in qs)
 
     def test_blog_count(self):
         r = requests.get(f"{API}/blog", timeout=10)
@@ -181,8 +189,6 @@ class TestAI:
     def test_detect_scam(self):
         payload = {"message": "You won 25 lakh in KBC lottery! Pay Rs 5000 fee to claim your prize immediately."}
         r = requests.post(f"{API}/ai/detect", json=payload, timeout=60)
-        if r.status_code == 502:
-            pytest.skip(f"Gemini API upstream error: {r.text}")
         assert r.status_code == 200
         data = r.json()
         assert data["risk_level"] in ("safe", "suspicious", "dangerous")
@@ -201,11 +207,28 @@ class TestAI:
         for chunk in r.iter_content(chunk_size=None, decode_unicode=True):
             if chunk:
                 chunks.append(chunk)
-            if sum(len(c) for c in chunks) > 20:
-                break
         r.close()
         full = "".join(chunks)
         assert len(full) > 0, "No streaming content received"
+        assert "Sorry, I ran into a problem" not in full
+
+    @pytest.mark.parametrize("path,payload", [
+        ("url-check", {"url": "http://secure-login-paypal.tk/verify"}),
+        ("qr", {"content": "http://bit.ly/test-safenet"}),
+    ])
+    def test_url_and_qr_analysis(self, path, payload):
+        r = requests.post(f"{API}/ai/{path}", json=payload, timeout=60)
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data["risk_level"] in ("safe", "suspicious", "dangerous")
+        assert 0 <= data["risk_score"] <= 100
+        assert data["red_flags"]
+        assert data["explanation"]
+        assert data["advice"]
+
+    def test_invalid_scan_inputs(self):
+        for path, payload in [("url-check", {"url": ""}), ("qr", {"content": ""}), ("detect", {"message": "hi"})]:
+            assert requests.post(f"{API}/ai/{path}", json=payload, timeout=10).status_code == 422
 
 
 # ---------- admin auth & role checks ----------

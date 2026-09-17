@@ -83,6 +83,8 @@ android-sdk/frontend/node_modules/.cache/default-development/4.pack
 frontend/node_modules/.cache/default-development/4.pack
 .env
 .env.*
+!backend/.env.example
+!frontend/.env.example
 *.env
 credentials.json
 *.key

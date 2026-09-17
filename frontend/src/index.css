@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;500;600;700;900&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
 
 body {
     margin: 0;
@@ -12,7 +12,7 @@ body {
 }
 
 .font-heading {
-    font-family: 'Unbounded', sans-serif;
+    font-family: 'IBM Plex Sans', sans-serif;
 }
 
 code {
@@ -27,17 +27,17 @@ code {
         --card-foreground: 222 47% 11%;
         --popover: 0 0% 100%;
         --popover-foreground: 222 47% 11%;
-        --primary: 217 91% 60%;
+        --primary: 215 84% 39%;
         --primary-foreground: 0 0% 100%;
         --secondary: 214 32% 91%;
         --secondary-foreground: 222 47% 11%;
         --muted: 214 32% 91%;
-        --muted-foreground: 215 16% 47%;
+        --muted-foreground: 215 18% 40%;
         --accent: 217 91% 95%;
         --accent-foreground: 222 47% 11%;
         --destructive: 0 84% 60%;
         --destructive-foreground: 0 0% 98%;
-        --border: 214 32% 85%;
+        --border: 214 30% 88%;
         --input: 214 32% 85%;
         --ring: 217 91% 60%;
         --radius: 0.5rem;

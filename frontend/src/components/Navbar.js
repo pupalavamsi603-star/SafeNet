@@ -11,81 +11,12 @@ import {
 } from "./ui/dropdown-menu";
 
 const links = [
+  { to: "/", label: "Home" },
   { to: "/scams", label: "Scam Types" },
   { to: "/tips", label: "Safety Tips" },
   { to: "/ai", label: "AI Assistant" },
   { to: "/report", label: "Report Scam" },
 ];
-
-// True once the page has scrolled past the hero's very top. Drives the
-// navbar's shift from flush-and-transparent to a floating, bordered bar.
-function useScrolled(threshold = 12) {
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    // Coalesced to one read per frame; the raw listener fired far more often
-    // than the screen refreshes.
-    let ticking = false;
-    const apply = () => {
-      ticking = false;
-      setScrolled(window.scrollY > threshold);
-    };
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(apply);
-    };
-    apply();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [threshold]);
-  return scrolled;
-}
-
-// The hero is always dark regardless of theme, and the navbar is pulled over
-// it. Track whether the bar currently overlaps it so we can style for a dark
-// backdrop instead of following the theme (in light mode the logo scored 1.13
-// contrast against the hero — effectively invisible).
-function useOverDarkHero() {
-  const { pathname } = useLocation();
-  const [over, setOver] = useState(false);
-
-  useEffect(() => {
-    // getBoundingClientRect() in the scroll handler forced a synchronous layout on
-    // every scroll event, which was the main source of scroll stutter. Measure the
-    // hero once into document space instead, then compare against scrollY — no
-    // layout read while scrolling.
-    let heroBottom = null;
-    let ticking = false;
-
-    const apply = () => {
-      ticking = false;
-      // 80px ~= the navbar band plus its floating offset
-      setOver(heroBottom !== null && heroBottom - window.scrollY > 80);
-    };
-    const measure = () => {
-      const hero = document.getElementById("hero");
-      heroBottom = hero ? hero.getBoundingClientRect().bottom + window.scrollY : null;
-      apply();
-    };
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(apply);
-    };
-
-    measure();
-    const raf = requestAnimationFrame(measure); // hero may mount a tick later
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", measure);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", measure);
-    };
-  }, [pathname]);
-
-  return over;
-}
 
 export const Navbar = () => {
   const [open, setOpen] = useState(false);
@@ -93,18 +24,16 @@ export const Navbar = () => {
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
-  const scrolled = useScrolled();
-  const overHero = useOverDarkHero();
+  const { pathname } = useLocation();
+  useEffect(() => { setOpen(false); }, [pathname]);
+  useEffect(() => {
+    const escape = (event) => { if (event.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
+  }, []);
 
-  // The mobile sheet needs a solid surface even when the bar is transparent.
-  const solid = scrolled || open;
-  // Force light-on-dark while the bar overlaps the hero; the sheet is opaque
-  // so it goes back to theme colours.
-  const onDark = overHero && !open;
-
-  const linkIdle = onDark ? "text-slate-300 hover:text-white" : "text-muted-foreground hover:text-foreground";
-  const linkActive = onDark ? "bg-white/15 text-white font-medium" : "bg-white/10 text-foreground font-medium";
-  const iconBtn = onDark ? "text-slate-200 hover:text-white hover:bg-white/10" : "";
+  const linkIdle = "text-muted-foreground hover:text-primary";
+  const linkActive = "bg-primary/10 text-primary font-semibold";
 
   return (
     <header
@@ -119,39 +48,33 @@ export const Navbar = () => {
         paddingRight: "0.75rem",
       }}
       data-testid="main-navbar"
-      data-scrolled={scrolled ? "true" : "false"}
     >
       <div
-        data-solid={solid ? "true" : "false"}
-        className={`app-header__bar mx-auto max-w-7xl rounded-2xl transition-[background-color,box-shadow] duration-300 ease-out ${
-          solid
-            ? `backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.35)] ${onDark ? "bg-slate-950/80" : "bg-background/90"}`
-            : "bg-transparent"
-        }`}
+        data-solid="true"
+        className="app-header__bar mx-auto max-w-7xl rounded-2xl border bg-background/95 shadow-sm"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center h-16 gap-4">
           <div className="flex-1 flex justify-start min-w-0">
           <Link to="/" className="flex items-center gap-2 group shrink-0" data-testid="navbar-logo-link">
             <div className="relative">
               <Shield className="w-7 h-7 text-sky-500" />
-              <div className="absolute inset-0 rounded-full bg-sky-500/30 pulse-ring" />
             </div>
-            <span className={`font-heading font-bold text-lg tracking-tight ${onDark ? "text-white" : ""}`}>
+            <span className="font-heading font-bold text-lg tracking-tight">
               Safe<span className="text-sky-500">Net</span>
             </span>
           </Link>
           </div>
 
-          {/* centred pill nav — flanked by equal-width rails so it lands on the
-              true centre line regardless of logo or action-button widths */}
-          <nav className="hidden lg:flex items-center gap-0.5 rounded-full border border-white/10 bg-white/[0.04] backdrop-blur-md px-1.5 py-1.5">
+          {/* Equal-width rails keep the navigation centered. */}
+          <nav aria-label="Main navigation" className="hidden lg:flex items-center gap-0.5">
             {links.map((l) => (
               <NavLink
                 key={l.to}
                 to={l.to}
-                data-testid={`nav-link-${l.to.slice(1)}`}
+                data-testid={`nav-link-${l.to.slice(1) || "home"}`}
+                end={l.to === "/"}
                 className={({ isActive }) =>
-                  `px-4 py-1.5 text-sm rounded-full transition-colors duration-200 ${
+                  `px-3 py-2 text-sm rounded-lg transition-colors duration-200 ${
                     isActive ? `${linkActive} shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]` : linkIdle
                   }`
                 }
@@ -162,17 +85,17 @@ export const Navbar = () => {
           </nav>
 
           <div className="flex-1 flex items-center justify-end gap-1.5 min-w-0">
-            <Button variant="ghost" size="icon" className={`rounded-full ${iconBtn}`} onClick={() => setSearchOpen(true)} data-testid="navbar-search-button" aria-label="Search">
+            <Button variant="ghost" size="icon" className="rounded-lg" onClick={() => setSearchOpen(true)} data-testid="navbar-search-button" aria-label="Search">
               <Search className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="icon" className={`rounded-full ${iconBtn}`} onClick={toggle} data-testid="theme-toggle-button" aria-label="Toggle theme">
+            <Button variant="ghost" size="icon" className="rounded-lg" onClick={toggle} data-testid="theme-toggle-button" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}>
               {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
 
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className={`rounded-full gap-2 ${onDark ? "border-white/25 bg-white/5 text-white hover:bg-white/10 hover:text-white" : ""}`} data-testid="user-menu-button">
+                  <Button variant="outline" size="sm" className="rounded-lg gap-2" data-testid="user-menu-button">
                     <UserRound className="w-4 h-4" />
                     <span className="hidden sm:inline max-w-[100px] truncate">{user.name}</span>
                   </Button>
@@ -196,18 +119,18 @@ export const Navbar = () => {
             ) : (
               <Button
                 size="sm"
-                className="rounded-full bg-sky-500 hover:bg-sky-600 text-white hidden sm:inline-flex gap-1.5 px-5"
+                className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground hidden sm:inline-flex gap-1.5 px-5"
                 onClick={() => navigate("/login")}
                 data-testid="navbar-login-button"
               >
-                Get Protected <ArrowRight className="w-3.5 h-3.5" />
+                Sign in <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             )}
 
             <Button
               variant="ghost"
               size="icon"
-              className={`lg:hidden rounded-full ${iconBtn}`}
+              className="lg:hidden rounded-lg"
               onClick={() => setOpen(!open)}
               data-testid="mobile-menu-button"
               aria-label={open ? "Close menu" : "Open menu"}
@@ -220,7 +143,7 @@ export const Navbar = () => {
         </div>
 
         {open && (
-          <nav id="mobile-nav-menu" className="lg:hidden border-t border-white/10 px-4 py-3 space-y-1 rounded-b-2xl" data-testid="mobile-nav-menu">
+          <nav aria-label="Mobile navigation" id="mobile-nav-menu" className="lg:hidden border-t border-white/10 px-4 py-3 space-y-1 rounded-b-2xl" data-testid="mobile-nav-menu">
             {[...links, { to: "/about", label: "About" }, { to: "/contact", label: "Contact" }].map((l) => (
               <NavLink
                 key={l.to}

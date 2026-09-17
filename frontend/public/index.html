@@ -3,18 +3,18 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <meta name="theme-color" content="#0B1120" />
-        <meta name="description" content="A product of emergent.sh" />
+        <meta name="theme-color" content="#f6f9fd" />
+        <meta name="description" content="SafeNet is an AI-powered cybersecurity platform. Check suspicious URLs, scan QR codes, analyze messages and ask SafeBot for online safety guidance." />
         <script>
             // ThemeProvider applies `.dark` from a useEffect, i.e. after the first
             // paint, so every cold start flashed the light theme before going dark.
             // Same read as ThemeContext, run before anything renders.
             try {
-                if ((localStorage.getItem("safenet-theme") || "dark") === "dark") {
+                if ((localStorage.getItem("safenet-theme") || "light") === "dark") {
                     document.documentElement.classList.add("dark");
                 }
             } catch (e) {
-                document.documentElement.classList.add("dark");
+                /* Light is the fallback when storage is unavailable. */
             }
         </script>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -33,7 +33,7 @@
         work correctly both with client-side routing and a non-root public URL.
         Learn how to configure a non-root public URL by running `npm run build`.
         -->
-        <title>Emergent | Fullstack App</title>
+        <title>SafeNet | AI-Powered Cybersecurity Platform</title>
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
         <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
     </head>

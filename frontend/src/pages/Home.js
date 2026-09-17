@@ -1,32 +1,8 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import {
-  Shield, Bot, ScanSearch, GraduationCap, BookOpenCheck, ArrowRight,
-  MessageSquareWarning, Lock, AlertTriangle, ChevronRight, Globe,
-  ShieldCheck, ShieldAlert, Loader2, ExternalLink, CheckCircle2,
-} from "lucide-react";
-import { Button } from "../components/ui/button";
-import { SpaceBackdrop } from "../components/SpaceBackdrop";
-import { SectionGlow } from "../components/SectionGlow";
-import { Input } from "../components/ui/input";
+import { ShieldCheck, ArrowRight, BookOpenCheck, GraduationCap, Flag, Fingerprint, ScanSearch, ListChecks } from "lucide-react";
+import { SecurityWorkspace } from "../components/security/SecurityWorkspace";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../components/ui/accordion";
-import { api, formatApiErrorDetail } from "../lib/api";
-
-
-const features = [
-  { icon: ScanSearch, title: "AI Scam Detection", desc: "Paste any suspicious message and our AI instantly rates its risk, exposes red flags, and tells you what to do.", to: "/ai", span: "md:col-span-7", accent: "text-red-500", chip: "bg-red-500/10", testid: "feature-card-detection" },
-  { icon: Bot, title: "AI Assistant", desc: "Ask anything about online safety — SafeBot answers in plain language, 24/7.", to: "/ai", span: "md:col-span-5", accent: "text-sky-500", chip: "bg-sky-500/10", testid: "feature-card-assistant" },
-  { icon: BookOpenCheck, title: "Cyber Safety Tips", desc: "10 essential defense habits — passwords, 2FA, banking, Wi-Fi and more.", to: "/tips", span: "md:col-span-5", accent: "text-emerald-500", chip: "bg-emerald-500/10", testid: "feature-card-tips" },
-  { icon: GraduationCap, title: "Cyber Safety Quiz", desc: "Test your scam-spotting skills with 15 real-world scenarios and earn your certificate.", to: "/quiz", span: "md:col-span-7", accent: "text-amber-500", chip: "bg-amber-500/10", testid: "feature-card-quiz" },
-];
-
-const stats = [
-  { value: "11", label: "Scam types decoded" },
-  { value: "24/7", label: "AI protection" },
-  { value: "10", label: "Safety practices" },
-  { value: "1930", label: "Cyber helpline (IN)" },
-];
 
 const faqs = [
   { q: "What should I do first if I've been scammed?", a: "Act fast. Call your bank immediately to freeze cards/accounts, change passwords for affected accounts, and report to your national cybercrime portal (call 1930 or cybercrime.gov.in in India, ic3.gov in the USA). Speed matters — banks can sometimes reverse transfers reported within hours." },
@@ -36,285 +12,46 @@ const faqs = [
   { q: "Can I report a scam anonymously?", a: "Yes. The report form works without an account, and contact details are optional. Your report helps us track scam trends and warn others." },
 ];
 
-const fadeUp = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0 } };
 
-const riskCfg = {
-  safe: { color: "text-emerald-500", bg: "bg-emerald-500/10 border-emerald-500/30", bar: "bg-emerald-500", ring: "#10b981", icon: ShieldCheck, label: "Looks Safe" },
-  suspicious: { color: "text-amber-500", bg: "bg-amber-500/10 border-amber-500/30", bar: "bg-amber-500", ring: "#f59e0b", icon: AlertTriangle, label: "Suspicious" },
-  dangerous: { color: "text-red-500", bg: "bg-red-500/10 border-red-500/30", bar: "bg-red-500", ring: "#ef4444", icon: ShieldAlert, label: "Dangerous" },
-};
-
-function URLTool() {
-  const [url, setUrl] = useState("");
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const resultRef = useRef(null);
-
-  const check = async () => {
-    const u = url.trim();
-    if (!u) { setError("Enter a URL to check"); return; }
-    setError("");
-    setLoading(true);
-    setResult(null);
-    try {
-      const { data } = await api.post("/ai/url-check", { url: u });
-      setResult(data);
-      setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 100);
-    } catch (e) {
-      setError(formatApiErrorDetail(e.response?.data?.detail) || "Check failed. Try again.");
-    }
-    setLoading(false);
-  };
-
-  const cfg = result ? riskCfg[result.risk_level] || riskCfg.suspicious : null;
-
-  return (
-    <section className="py-24" id="url-check">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6">
-        <motion.div className="text-center" initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
-          <span className="inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-4 py-1.5 text-xs font-medium tracking-wide text-sky-400">
-            <Globe className="w-3.5 h-3.5" /> URL Safety Checker
-          </span>
-          <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tighter mt-6">Is that link safe to click?</h2>
-          <p className="text-sm text-muted-foreground mt-4 leading-relaxed max-w-md mx-auto">
-            Paste any suspicious link — SMS, email, social media — and get an instant AI safety analysis before you click.
-          </p>
-          <div className="mt-7 flex gap-3 max-w-xl mx-auto">
-            <Input
-              value={url}
-              onChange={(e) => { setUrl(e.target.value); setError(""); }}
-              onKeyDown={(e) => e.key === "Enter" && check()}
-              placeholder="https://suspicious-link.com/..."
-              className="h-12 rounded-xl flex-1 text-sm"
-              data-testid="url-check-input"
-            />
-            <Button onClick={check} disabled={loading} className="h-12 rounded-xl bg-sky-500 hover:bg-sky-600 text-white px-6 shrink-0" data-testid="url-check-button">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Shield className="w-4 h-4 mr-1.5" /> Check URL</>}
-            </Button>
-          </div>
-          {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
-        </motion.div>
-
-        {/* Results sit under the input rather than beside it — the idle
-            placeholder is gone, so nothing occupies this space until there
-            is something to show. */}
-        <div ref={resultRef} className="mt-10 text-left">
-          {loading && (
-            <div className="rounded-xl border glass-panel p-10 text-center flex flex-col items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center">
-                <Loader2 className="w-6 h-6 animate-spin text-sky-500" />
-              </div>
-              <p className="text-sm text-muted-foreground">AI is analyzing this URL...</p>
-            </div>
-          )}
-          {result && cfg && (
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border bg-card p-6 space-y-5">
-              <div className="ai-glow-border p-[2px]">
-                <div className="rounded-[0.65rem] bg-card/95 backdrop-blur-sm p-5">
-                  <div className="flex items-center gap-4">
-                    <div className="relative w-16 h-16 shrink-0">
-                      <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(${cfg.ring} ${result.risk_score}%, hsl(var(--secondary)) ${result.risk_score}%)` }} />
-                      <div className="absolute inset-[3px] rounded-full bg-card flex items-center justify-center">
-                        <cfg.icon className={`w-6 h-6 ${cfg.color}`} strokeWidth={1.6} />
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <p className={`font-heading text-lg font-bold tracking-tight ${cfg.color}`}>{cfg.label}</p>
-                      {result.scam_type && result.scam_type !== "None detected" && (
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider mt-0.5">{result.scam_type}</p>
-                      )}
-                    </div>
-                    <span className={`ml-auto font-heading text-2xl font-bold ${cfg.color}`}>{result.risk_score}<span className="text-sm">/100</span></span>
-                  </div>
-                  <div className="mt-4 h-2 rounded-full bg-secondary overflow-hidden">
-                    <motion.div className={`h-full rounded-full ${cfg.bar}`} initial={{ width: 0 }} animate={{ width: `${result.risk_score}%` }} transition={{ duration: 0.8, ease: "easeOut" }} />
-                  </div>
-                </div>
-              </div>
-              {result.explanation && <p className="text-sm leading-relaxed">{result.explanation}</p>}
-              {result.red_flags?.length > 0 && (
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2.5">Red flags</p>
-                  <ul className="space-y-2">
-                    {result.red_flags.map((f, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm"><AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" /> {f}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {result.advice?.length > 0 && (
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2.5">What to do</p>
-                  <ul className="space-y-2">
-                    {result.advice.map((a, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm"><ShieldCheck className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" /> {a}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1.5" onClick={() => { setResult(null); setUrl(""); }}>
-                <CheckCircle2 className="w-3.5 h-3.5" /> Check another URL
-              </Button>
-            </motion.div>
-          )}
-        </div>
-      </div>
-    </section>
-  );
-}
+const resources = [
+  { icon: Fingerprint, title: "Recognize the scam", text: "Learn the warning signs of phishing, OTP fraud, fake jobs and more.", to: "/scams", action: "Explore scam types" },
+  { icon: BookOpenCheck, title: "Build safer habits", text: "Practical steps for protecting your accounts, payments and personal data.", to: "/tips", action: "Read safety tips" },
+  { icon: GraduationCap, title: "Test your instincts", text: "Practice spotting scams with real-world scenarios in the cyber safety quiz.", to: "/quiz", action: "Take the quiz" },
+];
 
 export default function Home() {
+  const [tool, setTool] = useState("url");
   return (
-    <div data-testid="home-page">
-      {/* HERO */}
-      {/* -mt-16/pt-16 pulls the hero under the sticky navbar so the starfield
-          runs behind it, the way the nav floats over the sky. */}
-      <section id="hero" className="relative overflow-hidden -mt-16 pt-16">
-        <SpaceBackdrop />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-24 lg:py-36 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-          <div className="lg:col-span-7">
-            <motion.div initial="hidden" animate="show" variants={fadeUp} transition={{ duration: 0.6 }}>
-              <p className="text-xs uppercase tracking-[0.25em] text-sky-400 mb-5 flex items-center gap-2">
-                <Shield className="w-4 h-4" /> Cyber Safety · Scam Awareness · AI Protection
-              </p>
-              <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tighter text-white leading-[1.08]">
-                Stay Safe Online with <span className="text-sky-400">AI-Powered</span> Cyber Protection
-              </h1>
-              <p className="mt-6 text-base md:text-lg text-slate-300 max-w-xl leading-relaxed">
-                Learn how scammers operate, detect suspicious messages instantly, and build habits that make you
-                nearly impossible to fool. Your knowledge is the firewall.
-              </p>
-              <div className="mt-9 flex flex-wrap gap-3">
-                <Button asChild size="lg" className="rounded-full bg-sky-500 hover:bg-sky-600 text-white px-7" data-testid="hero-cta-learn">
-                  <Link to="/tips">Learn Cyber Safety <ArrowRight className="w-4 h-4 ml-1.5" /></Link>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="rounded-full border-red-400/50 text-red-300 hover:bg-red-500/15 hover:text-red-200 bg-transparent px-7" data-testid="hero-cta-detect">
-                  <Link to="/ai?tab=detect"><MessageSquareWarning className="w-4 h-4 mr-1.5" /> Detect a Scam</Link>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="rounded-full border-slate-500/60 text-slate-200 hover:bg-white/10 hover:text-white bg-transparent px-7" data-testid="hero-cta-chat">
-                  <Link to="/ai"><Bot className="w-4 h-4 mr-1.5" /> Start AI Chat</Link>
-                </Button>
-              </div>
-            </motion.div>
-          </div>
-          <motion.div
-            className="lg:col-span-5 hidden lg:flex justify-center"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          >
-            <div className="relative w-72 h-72 float-slow" data-testid="hero-illustration">
-              <div className="absolute inset-0 rounded-2xl border border-sky-400/30 bg-sky-500/5 backdrop-blur-sm overflow-hidden">
-                <div className="absolute left-0 right-0 h-0.5 bg-sky-400/60 scan-line" />
-              </div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="relative">
-                  <Shield className="w-28 h-28 text-sky-400" strokeWidth={1.2} />
-                  <Lock className="w-9 h-9 text-white absolute inset-0 m-auto" strokeWidth={1.6} />
-                  <div className="absolute -inset-6 rounded-full border border-sky-400/40 pulse-ring" />
-                </div>
-              </div>
-              <div className="absolute -top-3 -right-3 rounded-lg px-3 py-2 text-xs text-sky-200 border border-sky-400/30 bg-slate-900/80 backdrop-blur-md">Threat blocked</div>
-              <div className="absolute -bottom-3 -left-3 rounded-lg px-3 py-2 text-xs text-emerald-200 border border-emerald-400/30 bg-slate-900/80 backdrop-blur-md">Connection secure</div>
-            </div>
-          </motion.div>
+    <div data-testid="home-page" className="safenet-home">
+      <section className="home-intro" aria-labelledby="home-title">
+        <div className="home-container">
+          <p className="eyebrow"><ShieldCheck className="w-4 h-4" /> AI-Powered Cybersecurity Platform</p>
+          <h1 id="home-title">Check for scams before you click.</h1>
+          <p className="intro-copy">Suspicious link, QR code or message? Analyze it with SafeNet, or ask our AI assistant what to do next.</p>
         </div>
       </section>
-
-      <URLTool />
-
-      {/* STATS */}
-      <section className="border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-2 md:grid-cols-4">
-          {stats.map((s, i) => (
-            <div key={s.label} className={`py-8 px-4 ${i !== 0 ? "md:border-l" : ""} ${i % 2 !== 0 ? "border-l md:border-l" : ""}`}>
-              <p className="font-heading text-3xl font-bold text-sky-500">{s.value}</p>
-              <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground mt-1.5">{s.label}</p>
-            </div>
+      <section className="home-container security-section" aria-labelledby="tools-title">
+        <div className="section-heading"><h2 id="tools-title">What would you like to check?</h2><span className="text-xs text-muted-foreground hidden sm:block">Four tools. One place to stay informed.</span></div>
+        <SecurityWorkspace value={tool} onValueChange={setTool} />
+        <p className="workspace-note"><ShieldCheck className="w-4 h-4 shrink-0" /> AI guidance to help you decide. Never submit passwords, OTPs or card details.</p>
+      </section>
+      <section className="how-section" aria-label="How SafeNet helps">
+        <div className="home-container how-grid">
+          {[[ScanSearch, "Check before you click", "Analyze a link, QR code or message."], [ListChecks, "Understand the signals", "See risk indicators and plain-language reasons."], [ShieldCheck, "Know your next step", "Use the guidance to make a safer decision."]].map(([Icon, title, text], index) => (
+            <div className="how-item" key={title}><span className="step-number">0{index + 1}</span><div><h3><Icon className="w-4 h-4" />{title}</h3><p>{text}</p></div></div>
           ))}
         </div>
       </section>
-
-      {/* FEATURES BENTO */}
-      <section className="relative overflow-hidden py-28">
-        <SectionGlow />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center max-w-2xl mx-auto">
-            <span className="inline-flex items-center rounded-full border border-sky-500/30 bg-sky-500/10 px-4 py-1.5 text-xs font-medium tracking-wide text-sky-400">
-              What SafeNet gives you
-            </span>
-            <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tighter mt-6 leading-[1.15]">
-              Four tools that turn you from an easy target into a hard one.
-            </h2>
-          </div>
-          <div className="mt-14 grid grid-cols-1 md:grid-cols-12 gap-6">
-          {features.map((f, i) => (
-            <motion.div
-              key={f.title}
-              className={`${f.span}`}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-50px" }}
-              transition={{ duration: 0.5, delay: i * 0.08 }}
-            >
-              <Link
-                to={f.to}
-                data-testid={f.testid}
-                className="group block h-full rounded-xl border bg-card p-8 hover:border-sky-500/50 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
-              >
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${f.chip}`}>
-                  <f.icon className={`w-7 h-7 ${f.accent}`} strokeWidth={1.5} />
-                </div>
-                <h3 className="font-heading text-lg font-semibold mt-5 tracking-tight">{f.title}</h3>
-                <p className="text-sm text-muted-foreground mt-2.5 leading-relaxed">{f.desc}</p>
-                <span className="inline-flex items-center gap-1 text-sm text-sky-500 mt-5 group-hover:gap-2.5 transition-[gap] duration-300">
-                  Explore <ChevronRight className="w-4 h-4" />
-                </span>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        </div>
+      <section className="home-container resources-section" aria-labelledby="learn-title">
+        <div className="section-heading"><div><p className="eyebrow">Stay a step ahead</p><h2 id="learn-title">A little knowledge. A stronger defense.</h2></div><Link to="/about" className="text-sm text-primary inline-flex gap-1 items-center">About SafeNet <ArrowRight className="w-4 h-4" /></Link></div>
+        <div className="resource-grid">{resources.map(({ icon: Icon, title, text, to, action }) => <Link className="resource-card" to={to} key={to}><Icon className="w-6 h-6 text-primary" strokeWidth={1.5} /><h3>{title}</h3><p>{text}</p><span>{action}<ArrowRight className="w-4 h-4" /></span></Link>)}</div>
       </section>
-
-      {/* ALERT BANNER */}
-      <section className="pb-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-8 md:p-10 flex flex-col md:flex-row md:items-center gap-6">
-          <AlertTriangle className="w-10 h-10 text-red-500 shrink-0" strokeWidth={1.5} />
-          <div className="flex-1">
-            <h3 className="font-heading text-lg font-semibold tracking-tight">Been targeted by a scam?</h3>
-            <p className="text-sm text-muted-foreground mt-1.5">Report it now — every report helps protect thousands of others. Get emergency steps and file your report in under 2 minutes.</p>
-          </div>
-          <Button asChild className="rounded-full bg-red-500 hover:bg-red-600 text-white px-7 shrink-0" data-testid="home-report-cta">
-            <Link to="/report">Report a Scam</Link>
-          </Button>
-        </div>
-        </div>
+      <section className="home-container">
+        <div className="report-callout"><div className="report-icon"><Flag className="w-6 h-6" /></div><div className="flex-1"><h2>Seen a scam? Help others spot it.</h2><p>Share what happened. You can report anonymously, without an account.</p></div><Link to="/report" className="report-link" data-testid="home-report-cta">Report a Scam <ArrowRight className="w-4 h-4" /></Link></div>
       </section>
-
-      {/* FAQ */}
-      <section className="relative overflow-hidden pb-28 pt-4" data-testid="faq-section">
-        <SectionGlow />
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="text-center max-w-2xl mx-auto">
-            <span className="inline-flex items-center rounded-full border border-sky-500/30 bg-sky-500/10 px-4 py-1.5 text-xs font-medium tracking-wide text-sky-400">
-              FAQ
-            </span>
-            <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tighter mt-6 leading-[1.15]">
-              Common questions, straight answers.
-            </h2>
-          </div>
-          <Accordion type="single" collapsible className="space-y-3 mt-14">
-          {faqs.map((f, i) => (
-            <AccordionItem key={i} value={`faq-${i}`} className="border rounded-lg px-5 bg-card" data-testid={`faq-item-${i}`}>
-              <AccordionTrigger className="text-left text-sm font-medium hover:no-underline">{f.q}</AccordionTrigger>
-              <AccordionContent className="text-sm text-muted-foreground leading-relaxed">{f.a}</AccordionContent>
-            </AccordionItem>
-            ))}
-          </Accordion>
-        </div>
+      <section className="home-container faq-section" data-testid="faq-section" aria-labelledby="faq-title">
+        <div><p className="eyebrow">Good to know</p><h2 id="faq-title">Your safety questions, answered.</h2><p className="text-sm text-muted-foreground mt-3">Simple guidance for the moments that matter.</p></div>
+        <Accordion type="single" collapsible>{faqs.map((f,i) => <AccordionItem value={`faq-${i}`} key={f.q}><AccordionTrigger className="text-left text-sm font-medium">{f.q}</AccordionTrigger><AccordionContent className="text-sm text-muted-foreground leading-relaxed">{f.a}</AccordionContent></AccordionItem>)}</Accordion>
       </section>
     </div>
   );
