@@ -18,7 +18,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12" data-testid="admin-dashboard-page">
-      <p className="text-xs uppercase tracking-[0.25em] text-sky-500 mb-3">Control center</p>
+      <p className="text-xs uppercase tracking-[0.25em] text-primary mb-3">Control center</p>
       <h1 className="font-heading text-3xl sm:text-4xl font-bold tracking-tighter">Admin Dashboard</h1>
 
       <Tabs defaultValue="overview" className="mt-10">

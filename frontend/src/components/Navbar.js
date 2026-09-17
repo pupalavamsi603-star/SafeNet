@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { Shield, Menu, X, Sun, Moon, Search, LogOut, LayoutDashboard, UserRound, ArrowRight } from "lucide-react";
+import { Shield, Menu, X, Search, LogOut, LayoutDashboard, UserRound, ArrowRight } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { useTheme } from "../context/ThemeContext";
 import { SearchDialog } from "./SearchDialog";
 import { Button } from "./ui/button";
 import {
@@ -22,7 +21,6 @@ export const Navbar = () => {
   const [open, setOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { user, logout } = useAuth();
-  const { theme, toggle } = useTheme();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -57,10 +55,10 @@ export const Navbar = () => {
           <div className="flex-1 flex justify-start min-w-0">
           <Link to="/" className="flex items-center gap-2 group shrink-0" data-testid="navbar-logo-link">
             <div className="relative">
-              <Shield className="w-7 h-7 text-sky-500" />
+              <Shield className="w-7 h-7 text-primary" />
             </div>
             <span className="font-heading font-bold text-lg tracking-tight">
-              Safe<span className="text-sky-500">Net</span>
+              Safe<span className="text-primary">Net</span>
             </span>
           </Link>
           </div>
@@ -87,9 +85,6 @@ export const Navbar = () => {
           <div className="flex-1 flex items-center justify-end gap-1.5 min-w-0">
             <Button variant="ghost" size="icon" className="rounded-lg" onClick={() => setSearchOpen(true)} data-testid="navbar-search-button" aria-label="Search">
               <Search className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="rounded-lg" onClick={toggle} data-testid="theme-toggle-button" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}>
-              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
 
             {user ? (
@@ -119,7 +114,7 @@ export const Navbar = () => {
             ) : (
               <Button
                 size="sm"
-                className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground hidden sm:inline-flex gap-1.5 px-5"
+                className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground hidden sm:inline-flex gap-1.5 px-5"
                 onClick={() => navigate("/login")}
                 data-testid="navbar-login-button"
               >
@@ -150,14 +145,14 @@ export const Navbar = () => {
                 to={l.to}
                 onClick={() => setOpen(false)}
                 className={({ isActive }) =>
-                  `block px-3 py-2.5 rounded-lg text-sm ${isActive ? "bg-sky-500/10 text-sky-500 font-semibold" : "text-muted-foreground"}`
+                  `block px-3 py-2.5 rounded-lg text-sm ${isActive ? "bg-sky-500/10 text-primary font-semibold" : "text-muted-foreground"}`
                 }
               >
                 {l.label}
               </NavLink>
             ))}
             {!user && (
-              <NavLink to="/login" onClick={() => setOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm text-sky-500 font-semibold">
+              <NavLink to="/login" onClick={() => setOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm text-primary font-semibold">
                 Login / Register
               </NavLink>
             )}

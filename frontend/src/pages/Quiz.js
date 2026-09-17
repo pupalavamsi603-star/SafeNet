@@ -101,7 +101,7 @@ function CertificatePanel({ certificate }) {
           Issued on {issued} · {certificate.score}/{certificate.total}
         </p>
       )}
-      <Button onClick={download} className="mt-5 rounded-full bg-sky-500 hover:bg-sky-600 text-white" data-testid="download-certificate-button">
+      <Button onClick={download} className="mt-5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground" data-testid="download-certificate-button">
         <Download className="w-4 h-4 mr-2" /> Download Certificate
       </Button>
     </div>
@@ -188,13 +188,13 @@ export default function Quiz() {
   if (result) {
     const { passed, newly_issued: newlyIssued } = result;
     return (
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-20" data-testid="quiz-result-page">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-12" data-testid="quiz-result-page">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="rounded-xl border bg-card p-10 text-center">
-          <Award className={`w-16 h-16 mx-auto ${passed ? "text-amber-500" : "text-muted-foreground"}`} strokeWidth={1.3} />
+          <Award className={`w-16 h-16 mx-auto ${passed ? "text-amber-800" : "text-muted-foreground"}`} strokeWidth={1.3} />
           <h1 className="font-heading text-3xl font-bold tracking-tighter mt-5">
             {passed ? "Well done, cyber defender!" : "Keep training!"}
           </h1>
-          <p className="font-heading text-5xl font-bold text-sky-500 mt-6" data-testid="quiz-final-score">
+          <p className="font-heading text-5xl font-bold text-primary mt-6" data-testid="quiz-final-score">
             {result.score}<span className="text-2xl text-muted-foreground">/{result.total}</span>
           </p>
 
@@ -218,13 +218,13 @@ export default function Quiz() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16" data-testid="quiz-page">
-      <p className="text-xs uppercase tracking-[0.25em] text-amber-500 mb-4 flex items-center gap-2">
+      <p className="text-xs uppercase tracking-[0.25em] text-amber-800 mb-4 flex items-center gap-2">
         <GraduationCap className="w-4 h-4" /> Cyber Safety Quiz
       </p>
 
       {certificate && (
         <div className="mb-8 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-5 flex items-start gap-3" data-testid="already-certified-banner">
-          <ShieldCheck className="w-5 h-5 text-emerald-500 mt-0.5 shrink-0" />
+          <ShieldCheck className="w-5 h-5 text-emerald-700 mt-0.5 shrink-0" />
           <p className="text-sm leading-relaxed">
             You already earned your certificate ({certificate.score}/{certificate.total}). This run is practice — your
             certificate is issued once and keeps its original result.
@@ -234,7 +234,7 @@ export default function Quiz() {
 
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm text-muted-foreground">Question {idx + 1} of {questions.length}</p>
-        <p className="text-sm font-medium text-sky-500" data-testid="quiz-running-score">Score: {score}</p>
+        <p className="text-sm font-medium text-primary" data-testid="quiz-running-score">Score: {score}</p>
       </div>
       <Progress value={pct} className="h-1.5 mb-8" />
 
@@ -262,9 +262,9 @@ export default function Quiz() {
                   {String.fromCharCode(65 + i)}
                 </span>
                 <span className="flex-1">{opt}</span>
-                {checking && i === selected && <Loader2 className="w-4 h-4 animate-spin text-sky-500 shrink-0" />}
-                {answered && i === feedback.correct_index && <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />}
-                {answered && i === selected && i !== feedback.correct_index && <XCircle className="w-5 h-5 text-red-500 shrink-0" />}
+                {checking && i === selected && <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />}
+                {answered && i === feedback.correct_index && <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />}
+                {answered && i === selected && i !== feedback.correct_index && <XCircle className="w-5 h-5 text-red-700 shrink-0" />}
               </button>
             );
           })}
@@ -272,11 +272,11 @@ export default function Quiz() {
 
         {answered && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 rounded-xl border border-sky-500/30 bg-sky-500/5 p-5" data-testid="quiz-explanation" role="status">
-            <p className="text-xs uppercase tracking-[0.2em] text-sky-500 mb-2">
+            <p className="text-xs uppercase tracking-[0.2em] text-primary mb-2">
               {feedback.correct ? "Correct!" : "Not quite"}
             </p>
             <p className="text-sm leading-relaxed">{feedback.explanation}</p>
-            <Button onClick={next} disabled={finishing} className="mt-4 rounded-full bg-sky-500 hover:bg-sky-600 text-white" data-testid="quiz-next-button">
+            <Button onClick={next} disabled={finishing} className="mt-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground" data-testid="quiz-next-button">
               {finishing
                 ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Finishing...</>)
                 : (<>{idx + 1 >= questions.length ? "See Results" : "Next Question"} <ChevronRight className="w-4 h-4 ml-1" /></>)}

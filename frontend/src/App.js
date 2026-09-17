@@ -2,7 +2,6 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider } from "./context/AuthContext";
-import { ThemeProvider } from "./context/ThemeContext";
 import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/Footer";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -43,7 +42,6 @@ function SiteNavbar() {
 
 function App() {
   return (
-    <ThemeProvider>
       <SplashGate>
         <AuthProvider>
           <BrowserRouter>
@@ -71,11 +69,10 @@ function App() {
               </main>
               <SiteFooter />
             </div>
-            <Toaster position="top-right" richColors />
+            <Toaster theme="light" position="top-right" richColors />
           </BrowserRouter>
         </AuthProvider>
       </SplashGate>
-    </ThemeProvider>
   );
 }
 

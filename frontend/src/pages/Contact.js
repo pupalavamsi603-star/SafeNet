@@ -27,14 +27,14 @@ export default function Contact() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-20" data-testid="contact-page">
-      <p className="text-xs uppercase tracking-[0.25em] text-sky-500 mb-4">Get in touch</p>
-      <h1 className="font-heading text-4xl sm:text-5xl font-bold tracking-tighter">Contact SafeNet</h1>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-12" data-testid="contact-page">
+      <p className="text-xs uppercase tracking-[0.25em] text-primary mb-4">Get in touch</p>
+      <h1 className="font-heading text-3xl sm:text-4xl font-semibold tracking-tight">Contact SafeNet</h1>
       <p className="mt-5 text-base text-muted-foreground max-w-2xl leading-relaxed">
         Questions, feedback, or partnership ideas? We'd love to hear from you.
       </p>
 
-      <div className="mt-12 grid grid-cols-1 lg:grid-cols-12 gap-10">
+      <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-10">
         <div className="lg:col-span-4 space-y-5">
           {[
             { icon: Mail, title: "Email", value: "hello@safenet.example" },
@@ -43,7 +43,7 @@ export default function Contact() {
           ].map((c) => (
             <div key={c.title} className="rounded-xl border bg-card p-6 flex items-start gap-4">
               <div className="w-10 h-10 rounded-lg bg-sky-500/10 flex items-center justify-center shrink-0">
-                <c.icon className="w-5 h-5 text-sky-500" />
+                <c.icon className="w-5 h-5 text-primary" />
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">{c.title}</p>
@@ -56,7 +56,7 @@ export default function Contact() {
         <div className="lg:col-span-8">
           {sent ? (
             <div className="rounded-xl border bg-card p-12 text-center" data-testid="contact-success">
-              <CheckCircle2 className="w-14 h-14 text-emerald-500 mx-auto" strokeWidth={1.3} />
+              <CheckCircle2 className="w-14 h-14 text-emerald-700 mx-auto" strokeWidth={1.3} />
               <h2 className="font-heading text-2xl font-bold tracking-tighter mt-5">Message sent!</h2>
               <p className="text-sm text-muted-foreground mt-2.5">Thanks for reaching out. We typically reply within 1-2 business days.</p>
               <Button variant="outline" className="mt-6 rounded-full" onClick={() => { setSent(false); setForm({ name: "", email: "", subject: "", message: "" }); }} data-testid="contact-send-another">
@@ -83,7 +83,7 @@ export default function Contact() {
                 <Label htmlFor="contact-message">Message *</Label>
                 <Textarea id="contact-message" required minLength={5} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder="Tell us more..." className="min-h-[140px]" data-testid="contact-message-input" />
               </div>
-              <Button type="submit" disabled={submitting} className="rounded-full bg-sky-500 hover:bg-sky-600 text-white px-8" data-testid="contact-submit-button">
+              <Button type="submit" disabled={submitting} className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground px-8" data-testid="contact-submit-button">
                 {submitting ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending...</>) : (<><SendHorizonal className="w-4 h-4 mr-2" /> Send Message</>)}
               </Button>
             </form>

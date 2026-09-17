@@ -4,7 +4,7 @@
   "webDir": "build",
   "android": {
     "allowMixedContent": false,
-    "backgroundColor": "#0B1120"
+    "backgroundColor": "#F6F9FD"
   },
   "server": {
     "androidScheme": "https"
@@ -12,14 +12,14 @@
   "plugins": {
     "SplashScreen": {
       "launchShowDuration": 1200,
-      "backgroundColor": "#0B1120",
+      "backgroundColor": "#F6F9FD",
       "androidSplashResourceName": "splash",
       "showSpinner": false,
       "androidScaleType": "CENTER_CROP"
     },
     "StatusBar": {
-      "style": "DARK",
-      "backgroundColor": "#0B1120"
+      "style": "LIGHT",
+      "backgroundColor": "#F6F9FD"
     }
   }
 }

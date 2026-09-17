@@ -64,13 +64,13 @@ export const ScamManager = ({ onChange }) => {
     }
   };
 
-  if (!items) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-500" /></div>;
+  if (!items) return <div className="flex justify-center py-10 sm:py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
   return (
     <div data-testid="admin-scam-manager">
       <div className="flex items-center justify-between mb-6">
         <p className="text-sm text-muted-foreground">{items.length} scam articles</p>
-        <Button onClick={openCreate} className="rounded-full bg-sky-500 hover:bg-sky-600 text-white" data-testid="scam-add-button">
+        <Button onClick={openCreate} className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground" data-testid="scam-add-button">
           <Plus className="w-4 h-4 mr-1.5" /> Add Scam Article
         </Button>
       </div>
@@ -83,7 +83,7 @@ export const ScamManager = ({ onChange }) => {
             </div>
             <Badge variant="outline" className="text-[10px] uppercase shrink-0">{it.severity}</Badge>
             <Button variant="ghost" size="icon" onClick={() => openEdit(it)} data-testid={`scam-edit-${it.slug}`} aria-label="Edit"><Pencil className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => remove(it)} data-testid={`scam-delete-${it.slug}`} aria-label="Delete"><Trash2 className="w-4 h-4 text-red-500" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => remove(it)} data-testid={`scam-delete-${it.slug}`} aria-label="Delete"><Trash2 className="w-4 h-4 text-red-700" /></Button>
           </div>
         ))}
       </div>
@@ -110,7 +110,7 @@ export const ScamManager = ({ onChange }) => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={save} disabled={saving} className="bg-sky-500 hover:bg-sky-600 text-white" data-testid="scam-form-save">
+            <Button onClick={save} disabled={saving} className="bg-primary hover:bg-primary/90 text-primary-foreground" data-testid="scam-form-save">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
             </Button>
           </DialogFooter>

@@ -12,7 +12,7 @@ import { Button } from "./ui/button";
 export function LoadingState({ label = "Loading...", className = "py-24" }) {
   return (
     <div className={`flex flex-col items-center justify-center ${className}`} role="status" aria-live="polite">
-      <Loader2 className="w-8 h-8 animate-spin text-sky-500" />
+      <Loader2 className="w-8 h-8 animate-spin text-primary" />
       <span className="sr-only">{label}</span>
     </div>
   );

@@ -11,13 +11,13 @@ const SUGGESTIONS = [
 export default function NotFound() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-24 text-center" data-testid="not-found-page">
-      <p className="font-heading text-7xl sm:text-8xl font-bold tracking-tighter text-sky-500">404</p>
+      <p className="font-heading text-7xl sm:text-8xl font-bold tracking-tighter text-primary">404</p>
       <h1 className="font-heading text-2xl sm:text-3xl font-bold tracking-tighter mt-4">This page doesn't exist</h1>
       <p className="mt-4 text-base text-muted-foreground leading-relaxed max-w-md mx-auto">
         The link may be broken or the page may have moved. Nothing to worry about — here's the way back.
       </p>
 
-      <Button asChild className="mt-8 rounded-full bg-sky-500 hover:bg-sky-600 text-white" data-testid="not-found-home-button">
+      <Button asChild className="mt-8 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground" data-testid="not-found-home-button">
         <Link to="/"><Home className="w-4 h-4 mr-2" /> Back to home</Link>
       </Button>
 
@@ -30,7 +30,7 @@ export default function NotFound() {
             className="group rounded-xl border bg-card p-5 hover:border-sky-500/50 transition-colors duration-200"
           >
             <div className="w-10 h-10 rounded-lg bg-sky-500/10 flex items-center justify-center">
-              <s.icon className="w-5 h-5 text-sky-500" strokeWidth={1.6} />
+              <s.icon className="w-5 h-5 text-primary" strokeWidth={1.6} />
             </div>
             <p className="font-heading text-sm font-semibold tracking-tight mt-4">{s.label}</p>
             <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{s.desc}</p>

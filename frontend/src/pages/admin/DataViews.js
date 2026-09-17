@@ -9,9 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../componen
 import { LoadingState, ErrorState } from "../../components/StateViews";
 
 const statusColor = {
-  pending: "bg-amber-500/15 text-amber-500 border-amber-500/30",
-  reviewing: "bg-sky-500/15 text-sky-500 border-sky-500/30",
-  resolved: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
+  pending: "bg-amber-500/15 text-amber-800 border-amber-500/30",
+  reviewing: "bg-sky-500/15 text-primary border-sky-500/30",
+  resolved: "bg-emerald-500/15 text-emerald-700 border-emerald-500/30",
 };
 
 export const ReportsView = () => {
@@ -36,14 +36,14 @@ export const ReportsView = () => {
   };
 
   if (error) return <ErrorState message="Couldn't load reports." onRetry={load} testId="admin-reports-error" />;
-  if (!reports) return <LoadingState label="Loading reports" className="py-20" />;
+  if (!reports) return <LoadingState label="Loading reports" className="py-10 sm:py-12" />;
   if (reports.length === 0) return <p className="text-sm text-muted-foreground text-center py-16" data-testid="reports-empty">No scam reports yet.</p>;
 
   return (
     <div className="rounded-xl border bg-card divide-y" data-testid="admin-reports-view">
       {reports.map((r) => (
         <div key={r.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3" data-testid={`report-row-${r.id}`}>
-          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelected(r)}>
+          <div className="flex-1 min-w-0 text-left cursor-pointer" role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(r); } }} onClick={() => setSelected(r)}>
             <div className="flex items-center gap-2">
               <p className="text-sm font-medium">{r.scam_category}</p>
               <Badge variant="outline" className={`text-[10px] uppercase ${statusColor[r.status]}`}>{r.status}</Badge>
@@ -103,7 +103,7 @@ export const MessagesView = () => {
   };
 
   if (error) return <ErrorState message="Couldn't load messages." onRetry={load} testId="admin-messages-error" />;
-  if (!messages) return <LoadingState label="Loading messages" className="py-20" />;
+  if (!messages) return <LoadingState label="Loading messages" className="py-10 sm:py-12" />;
   if (messages.length === 0) return <p className="text-sm text-muted-foreground text-center py-16" data-testid="messages-empty">No contact messages yet.</p>;
 
   return (
@@ -112,7 +112,7 @@ export const MessagesView = () => {
         <div key={m.id} className={`p-4 ${!m.read ? "bg-sky-500/5" : ""}`} data-testid={`message-row-${m.id}`}>
           <div className="flex items-center gap-2">
             <p className="text-sm font-medium">{m.subject}</p>
-            {!m.read && <Badge className="bg-sky-500 text-white text-[10px]">New</Badge>}
+            {!m.read && <Badge className="bg-primary text-primary-foreground text-[10px]">New</Badge>}
             {!m.read && (
               <Button variant="ghost" size="sm" className="ml-auto h-7 text-xs" onClick={() => markRead(m.id)} data-testid={`message-mark-read-${m.id}`}>
                 <MailOpen className="w-3.5 h-3.5 mr-1" /> Mark read
@@ -149,7 +149,7 @@ export const UsersView = ({ onChange }) => {
   };
 
   if (error) return <ErrorState message="Couldn't load users." onRetry={load} testId="admin-users-error" />;
-  if (!users) return <LoadingState label="Loading users" className="py-20" />;
+  if (!users) return <LoadingState label="Loading users" className="py-10 sm:py-12" />;
 
   return (
     <div className="rounded-xl border bg-card divide-y" data-testid="admin-users-view">
@@ -159,10 +159,10 @@ export const UsersView = ({ onChange }) => {
             <p className="text-sm font-medium">{u.name}</p>
             <p className="text-xs text-muted-foreground">{u.email}</p>
           </div>
-          <Badge variant="outline" className={u.role === "admin" ? "text-sky-500 border-sky-500/40" : "text-muted-foreground"}>{u.role}</Badge>
+          <Badge variant="outline" className={u.role === "admin" ? "text-primary border-sky-500/40" : "text-muted-foreground"}>{u.role}</Badge>
           {u.role !== "admin" && (
             <Button variant="ghost" size="icon" onClick={() => remove(u)} data-testid={`user-delete-${u.email}`} aria-label="Delete user">
-              <Trash2 className="w-4 h-4 text-red-500" />
+              <Trash2 className="w-4 h-4 text-red-700" />
             </Button>
           )}
         </div>

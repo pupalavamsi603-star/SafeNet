@@ -9,12 +9,12 @@ const values = [
 
 export default function About() {
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-20" data-testid="about-page">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-12" data-testid="about-page">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
         <div className="lg:col-span-7">
-          <p className="text-xs uppercase tracking-[0.25em] text-sky-500 mb-4">About SafeNet</p>
-          <h1 className="font-heading text-4xl sm:text-5xl font-bold tracking-tighter leading-[1.1]">
-            The internet is amazing.<br />It's also a <span className="text-red-500">hunting ground</span>.
+          <p className="text-xs uppercase tracking-[0.25em] text-primary mb-4">About SafeNet</p>
+          <h1 className="font-heading text-3xl sm:text-4xl font-semibold tracking-tight leading-[1.1]">
+            Make safer decisions online.
           </h1>
           <p className="mt-7 text-base text-muted-foreground leading-relaxed max-w-2xl">
             Every day, millions lose money and peace of mind to online scams — not because they're careless,
@@ -28,21 +28,15 @@ export default function About() {
           </p>
         </div>
         <div className="lg:col-span-5 flex items-center justify-center">
-          <div className="relative">
-            <img
-              src="https://images.unsplash.com/photo-1728756666032-d0b5552b6384?crop=entropy&cs=srgb&fm=jpg&q=85&w=700"
-              alt="Glass cyber shield"
-              className="rounded-xl border object-cover w-full max-w-sm"
-            />
-            <div className="absolute -bottom-4 -left-4 glass-panel rounded-lg px-4 py-3 flex items-center gap-2">
-              <Shield className="w-5 h-5 text-sky-500" />
-              <span className="text-sm font-medium">Protection through knowledge</span>
-            </div>
+          <div className="rounded-xl border bg-card p-8 w-full max-w-sm">
+            <Shield className="w-10 h-10 text-primary" strokeWidth={1.5} />
+            <h2 className="mt-5 text-xl font-semibold">Protection through knowledge</h2>
+            <p className="mt-3 text-sm text-muted-foreground leading-relaxed">Check suspicious content, understand warning signs and build safer online habits with SafeNet.</p>
           </div>
         </div>
       </div>
 
-      <div className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
         {values.map((v, i) => (
           <motion.div
             key={v.title}
@@ -52,7 +46,7 @@ export default function About() {
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: i * 0.1 }}
           >
-            <v.icon className="w-8 h-8 text-sky-500" strokeWidth={1.5} />
+            <v.icon className="w-8 h-8 text-primary" strokeWidth={1.5} />
             <h3 className="font-heading text-lg font-semibold mt-4 tracking-tight">{v.title}</h3>
             <p className="text-sm text-muted-foreground mt-2.5 leading-relaxed">{v.desc}</p>
           </motion.div>

@@ -8,8 +8,8 @@ import { Badge } from "../components/ui/badge";
 import { LoadingState, ErrorState, EmptyState } from "../components/StateViews";
 
 const severityStyle = {
-  critical: "bg-red-500/15 text-red-500 border-red-500/30",
-  high: "bg-amber-500/15 text-amber-500 border-amber-500/30",
+  critical: "bg-red-500/15 text-red-700 border-red-500/30",
+  high: "bg-amber-500/15 text-amber-800 border-amber-500/30",
 };
 
 export default function ScamTypes() {
@@ -25,9 +25,9 @@ export default function ScamTypes() {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-20" data-testid="scam-types-page">
-      <p className="text-xs uppercase tracking-[0.25em] text-red-500 mb-4">Know your enemy</p>
-      <h1 className="font-heading text-4xl sm:text-5xl font-bold tracking-tighter">Online Scam Types</h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-12" data-testid="scam-types-page">
+      <p className="text-xs uppercase tracking-[0.25em] text-primary mb-4">Recognize the warning signs</p>
+      <h1 className="font-heading text-3xl sm:text-4xl font-semibold tracking-tight">Online Scam Types</h1>
       <p className="mt-5 text-base text-muted-foreground max-w-2xl leading-relaxed">
         Every scam follows a script. Learn the scripts, and you'll see the con coming from a mile away.
         Click any scam to see how it works, warning signs, and real cases.
@@ -40,7 +40,7 @@ export default function ScamTypes() {
       ) : scams.length === 0 ? (
         <EmptyState icon={ShieldAlert} title="No scam types published yet" message="Check back soon — new scam breakdowns are added regularly." testId="scam-types-empty" />
       ) : (
-        <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {scams.map((s, i) => {
             const Icon = getIcon(s.icon);
             return (
@@ -54,11 +54,11 @@ export default function ScamTypes() {
                 <Link
                   to={`/scams/${s.slug}`}
                   data-testid={`scam-card-${s.slug}`}
-                  className="group flex flex-col h-full rounded-xl border bg-card p-7 hover:border-red-500/40 transition-colors duration-300"
+                  className="group flex flex-col h-full rounded-xl border bg-card p-7 hover:border-primary/50 transition-colors duration-300"
                 >
                   <div className="flex items-start justify-between">
-                    <div className="w-12 h-12 rounded-lg bg-red-500/10 flex items-center justify-center">
-                      <Icon className="w-6 h-6 text-red-500" strokeWidth={1.6} />
+                    <div className="w-12 h-12 rounded-lg bg-accent flex items-center justify-center">
+                      <Icon className="w-6 h-6 text-primary" strokeWidth={1.6} />
                     </div>
                     <Badge variant="outline" className={`text-[10px] uppercase tracking-wider ${severityStyle[s.severity] || severityStyle.high}`}>
                       {s.severity}
@@ -66,7 +66,7 @@ export default function ScamTypes() {
                   </div>
                   <h3 className="font-heading text-base font-semibold mt-5 tracking-tight">{s.title}</h3>
                   <p className="text-sm text-muted-foreground mt-2 leading-relaxed line-clamp-3 flex-1">{s.description}</p>
-                  <span className="inline-flex items-center gap-1 text-sm text-sky-500 mt-4 group-hover:gap-2.5 transition-[gap] duration-300">
+                  <span className="inline-flex items-center gap-1 text-sm text-primary mt-4 group-hover:gap-2.5 transition-[gap] duration-300">
                     Learn the tactics <ChevronRight className="w-4 h-4" />
                   </span>
                 </Link>

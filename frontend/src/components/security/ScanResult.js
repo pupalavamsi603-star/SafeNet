@@ -1,11 +1,11 @@
 import { AlertTriangle, ShieldCheck, ShieldAlert, CircleHelp, ScanSearch, Loader2 } from "lucide-react";
 
 const risks = {
-  safe: { icon: ShieldCheck, label: "Looks safe", style: "text-emerald-800 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-950" },
-  suspicious: { icon: AlertTriangle, label: "Suspicious", style: "text-amber-800 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-950" },
-  dangerous: { icon: ShieldAlert, label: "High risk", style: "text-red-800 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-950" },
-  malicious: { icon: ShieldAlert, label: "Malicious", style: "text-red-800 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-950" },
-  unknown: { icon: CircleHelp, label: "Unable to verify", style: "text-slate-700 bg-slate-100 border-slate-200 dark:text-slate-300 dark:bg-slate-900" },
+  safe: { icon: ShieldCheck, label: "Looks safe", style: "text-emerald-800 bg-emerald-50 border-emerald-200" },
+  suspicious: { icon: AlertTriangle, label: "Suspicious", style: "text-amber-800 bg-amber-50 border-amber-200" },
+  dangerous: { icon: ShieldAlert, label: "High risk", style: "text-red-800 bg-red-50 border-red-200" },
+  malicious: { icon: ShieldAlert, label: "Malicious", style: "text-red-800 bg-red-50 border-red-200" },
+  unknown: { icon: CircleHelp, label: "Unable to verify", style: "text-slate-700 bg-slate-100 border-slate-200" },
 };
 
 export function ScanResult({ result, loading, kind = "url", decoded }) {

@@ -51,7 +51,7 @@ export function URLTool() {
           <Input id="url-input" value={url} inputMode="url" autoComplete="off" spellCheck={false} maxLength={2000} disabled={loading} onChange={(e) => { setUrl(e.target.value); setError(""); setResult(null); }} onBlur={() => { if (url.trim()) setError(validateURL(url)); }} placeholder="https://example.com" className="h-11 min-w-0" aria-invalid={!!error} aria-describedby="url-help url-error" data-testid="url-check-input" />
           <Button type="submit" disabled={loading || !!cooldown} className="h-11 shrink-0 px-5" data-testid="url-check-button">{loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Scanning…</> : "Scan URL"}</Button>
         </div>
-        <p id="url-error" role="alert" className="text-sm text-red-700 dark:text-red-400 mt-2">{error}</p>
+        <p id="url-error" role="alert" className="text-sm text-red-700 mt-2">{error}</p>
         <p id="url-help" className="text-xs text-muted-foreground mt-3">Checks URL patterns with AI. SafeNet does not open or download the link.</p>
         <div className="mt-3"><CooldownBanner seconds={cooldown} label="URL scan limit reached." /></div>
       </form>

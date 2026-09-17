@@ -57,13 +57,13 @@ export const QuizManager = ({ onChange }) => {
     }
   };
 
-  if (!items) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-500" /></div>;
+  if (!items) return <div className="flex justify-center py-10 sm:py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
   return (
     <div data-testid="admin-quiz-manager">
       <div className="flex items-center justify-between mb-6">
         <p className="text-sm text-muted-foreground">{items.length} quiz questions</p>
-        <Button onClick={openCreate} className="rounded-full bg-sky-500 hover:bg-sky-600 text-white" data-testid="quiz-add-button">
+        <Button onClick={openCreate} className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground" data-testid="quiz-add-button">
           <Plus className="w-4 h-4 mr-1.5" /> Add Question
         </Button>
       </div>
@@ -72,10 +72,10 @@ export const QuizManager = ({ onChange }) => {
           <div key={it.id} className="flex items-center gap-4 p-4" data-testid={`quiz-row-${idx}`}>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium line-clamp-1">{it.question}</p>
-              <p className="text-xs text-emerald-500 mt-0.5 line-clamp-1">Answer: {it.options[it.correct_index]}</p>
+              <p className="text-xs text-emerald-700 mt-0.5 line-clamp-1">Answer: {it.options[it.correct_index]}</p>
             </div>
             <Button variant="ghost" size="icon" onClick={() => openEdit(it)} data-testid={`quiz-edit-${idx}`} aria-label="Edit"><Pencil className="w-4 h-4" /></Button>
-            <Button variant="ghost" size="icon" onClick={() => remove(it)} data-testid={`quiz-delete-${idx}`} aria-label="Delete"><Trash2 className="w-4 h-4 text-red-500" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => remove(it)} data-testid={`quiz-delete-${idx}`} aria-label="Delete"><Trash2 className="w-4 h-4 text-red-700" /></Button>
           </div>
         ))}
       </div>
@@ -104,7 +104,7 @@ export const QuizManager = ({ onChange }) => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={save} disabled={saving} className="bg-sky-500 hover:bg-sky-600 text-white" data-testid="quiz-form-save">
+            <Button onClick={save} disabled={saving} className="bg-primary hover:bg-primary/90 text-primary-foreground" data-testid="quiz-form-save">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
             </Button>
           </DialogFooter>

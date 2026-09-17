@@ -51,7 +51,7 @@ export default function Login() {
 
       <form onSubmit={submit} className="space-y-5" data-testid="login-form">
         {error && (
-          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-500" data-testid="login-error">{error}</div>
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700" data-testid="login-error">{error}</div>
         )}
         <div className="space-y-2">
           <Label htmlFor="login-email">Email address</Label>
@@ -66,14 +66,14 @@ export default function Login() {
             </button>
           </div>
         </div>
-        <Button type="submit" disabled={loading} className="w-full rounded-full bg-sky-500 hover:bg-sky-600 text-white h-12 text-[0.9rem] font-medium" data-testid="login-submit-button">
+        <Button type="submit" disabled={loading} className="w-full rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground h-12 text-[0.9rem] font-medium" data-testid="login-submit-button">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (<>Log in <ArrowRight className="w-4 h-4 ml-2" /></>)}
         </Button>
       </form>
 
       <p className="text-sm text-center text-muted-foreground mt-8">
         New to SafeNet?{" "}
-        <Link to="/register" className="text-sky-500 font-medium hover:underline" data-testid="login-register-link">Create an account</Link>
+        <Link to="/register" className="text-primary font-medium hover:underline" data-testid="login-register-link">Create an account</Link>
       </p>
     </AuthLayout>
   );

@@ -57,11 +57,11 @@ export default function ReportScam() {
   if (submitted)
     return (
       <div className="max-w-2xl mx-auto px-4 py-24 text-center" data-testid="report-success">
-        <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto" strokeWidth={1.3} />
+        <CheckCircle2 className="w-16 h-16 text-emerald-700 mx-auto" strokeWidth={1.3} />
         <h1 className="font-heading text-3xl font-bold tracking-tighter mt-6">Report received</h1>
         <p className="text-muted-foreground mt-4 leading-relaxed">
           Your report helps us track scam patterns and warn others. If you lost money, please also report
-          officially — call <span className="text-sky-500 font-semibold">1930</span> (India) or file at cybercrime.gov.in / ic3.gov right away.
+          officially — call <span className="text-primary font-semibold">1930</span> (India) or file at cybercrime.gov.in / ic3.gov right away.
         </p>
         <Button onClick={() => { setSubmitted(false); setForm({ scam_category: "", description: "", scammer_phone: "", scammer_url: "", amount_lost: "", reporter_name: "", reporter_email: "" }); setScreenshot(""); setFileName(""); }} variant="outline" className="mt-8 rounded-full" data-testid="report-another-button">
           Submit another report
@@ -71,13 +71,13 @@ export default function ReportScam() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16" data-testid="report-page">
-      <p className="text-xs uppercase tracking-[0.25em] text-red-500 mb-4">Take action</p>
-      <h1 className="font-heading text-4xl sm:text-5xl font-bold tracking-tighter">Report a Scam</h1>
+      <p className="text-xs uppercase tracking-[0.25em] text-red-700 mb-4">Take action</p>
+      <h1 className="font-heading text-3xl sm:text-4xl font-semibold tracking-tight">Report a Scam</h1>
       <p className="mt-5 text-base text-muted-foreground max-w-2xl leading-relaxed">
         Every report makes the internet safer. Share what happened — anonymously if you prefer.
       </p>
 
-      <div className="mt-12 grid grid-cols-1 lg:grid-cols-12 gap-10">
+      <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-10">
         <form onSubmit={submit} className="lg:col-span-7 rounded-xl border bg-card p-8 space-y-6" data-testid="report-form">
           <div className="space-y-2">
             <Label htmlFor="report-category">Scam category *</Label>
@@ -148,7 +148,7 @@ export default function ReportScam() {
             </div>
           </div>
 
-          <Button type="submit" disabled={submitting} className="w-full rounded-full bg-red-500 hover:bg-red-600 text-white h-11" data-testid="report-submit-button">
+          <Button type="submit" disabled={submitting} className="w-full rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground h-11" data-testid="report-submit-button">
             {submitting ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</>) : (<><Flag className="w-4 h-4 mr-2" /> Submit Report</>)}
           </Button>
         </form>
@@ -156,12 +156,12 @@ export default function ReportScam() {
         <aside className="lg:col-span-5">
           <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-7 sticky top-24" data-testid="emergency-steps-panel">
             <h2 className="font-heading text-lg font-semibold tracking-tight flex items-center gap-2.5">
-              <ShieldAlert className="w-5 h-5 text-red-500" /> Emergency steps if you've been scammed
+              <ShieldAlert className="w-5 h-5 text-red-700" /> Emergency steps if you've been scammed
             </h2>
             <ol className="mt-6 space-y-4">
               {EMERGENCY_STEPS.map((s, i) => (
                 <li key={i} className="flex items-start gap-3 text-sm leading-relaxed">
-                  <span className="w-6 h-6 rounded-full bg-red-500/15 text-red-500 flex items-center justify-center text-xs font-bold shrink-0">{i + 1}</span>
+                  <span className="w-6 h-6 rounded-full bg-red-500/15 text-red-700 flex items-center justify-center text-xs font-bold shrink-0">{i + 1}</span>
                   {s}
                 </li>
               ))}

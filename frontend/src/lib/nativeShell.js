@@ -18,10 +18,10 @@ export function initNativeShell() {
   });
 
   // Android 15+ forces edge-to-edge and ignores setBackgroundColor, which is why
-  // the status bar showed a grey scrim over the navy. Draw under a transparent
+  // the status bar showed a grey scrim over the page. Draw under a transparent
   // bar instead and let the page supply the colour; index.css adds the inset.
   StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
-  StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+  StatusBar.setStyle({ style: Style.Light }).catch(() => {});
 
   // SplashScreen.hide() is called by SplashGate once the animation is on screen.
 }

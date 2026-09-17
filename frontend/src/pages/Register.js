@@ -42,7 +42,7 @@ export default function Register() {
   return (
     <AuthLayout testId="register-page">
       <div className="lg:hidden flex justify-center mb-8">
-        <Shield className="w-10 h-10 text-sky-500" strokeWidth={1.4} />
+        <Shield className="w-10 h-10 text-primary" strokeWidth={1.4} />
       </div>
       <h1 className="font-heading text-[1.75rem] font-bold tracking-tighter">Create your account</h1>
       <p className="text-sm text-muted-foreground mt-2">Free forever. Start learning to stay safe online.</p>
@@ -59,7 +59,7 @@ export default function Register() {
 
       <form onSubmit={submit} className="space-y-5" data-testid="register-form">
         {error && (
-          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-500" data-testid="register-error">{error}</div>
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700" data-testid="register-error">{error}</div>
         )}
         <div className="space-y-2">
           <Label htmlFor="reg-name">Full name</Label>
@@ -78,7 +78,7 @@ export default function Register() {
             </button>
           </div>
           {form.password.length > 0 && (
-            <p className={`text-xs flex items-center gap-1.5 ${passOk ? "text-emerald-500" : "text-muted-foreground"}`}>
+            <p className={`text-xs flex items-center gap-1.5 ${passOk ? "text-emerald-700" : "text-muted-foreground"}`}>
               {passOk ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />} At least 6 characters
             </p>
           )}
@@ -87,12 +87,12 @@ export default function Register() {
           <Label htmlFor="reg-confirm">Confirm password</Label>
           <Input id="reg-confirm" required type={showPass ? "text" : "password"} autoComplete="new-password" className="h-12 rounded-lg" value={form.confirm} onChange={(e) => setForm({ ...form, confirm: e.target.value })} placeholder="Repeat password" data-testid="register-confirm-input" />
           {form.confirm.length > 0 && (
-            <p className={`text-xs flex items-center gap-1.5 ${matchOk ? "text-emerald-500" : "text-red-500"}`}>
+            <p className={`text-xs flex items-center gap-1.5 ${matchOk ? "text-emerald-700" : "text-red-700"}`}>
               {matchOk ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />} {matchOk ? "Passwords match" : "Passwords do not match"}
             </p>
           )}
         </div>
-        <Button type="submit" disabled={loading} className="w-full rounded-full bg-sky-500 hover:bg-sky-600 text-white h-12 text-[0.9rem] font-medium" data-testid="register-submit-button">
+        <Button type="submit" disabled={loading} className="w-full rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground h-12 text-[0.9rem] font-medium" data-testid="register-submit-button">
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (<>Create account <ArrowRight className="w-4 h-4 ml-2" /></>)}
         </Button>
       </form>
@@ -103,7 +103,7 @@ export default function Register() {
 
       <p className="text-sm text-center text-muted-foreground mt-6">
         Already have an account?{" "}
-        <Link to="/login" className="text-sky-500 font-medium hover:underline" data-testid="register-login-link">Log in</Link>
+        <Link to="/login" className="text-primary font-medium hover:underline" data-testid="register-login-link">Log in</Link>
       </p>
     </AuthLayout>
   );

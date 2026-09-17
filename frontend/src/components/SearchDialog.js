@@ -61,7 +61,7 @@ export const SearchDialog = ({ open, onOpenChange }) => {
           />
         </div>
         <div className="max-h-72 overflow-y-auto space-y-4">
-          {loading && <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-sky-500" /></div>}
+          {loading && <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>}
           {results && !loading && (
             <>
               <Section icon={ShieldAlert} title="Scam Types" items={results.scams} pathFn={(it) => `/scams/${it.slug}`} />

@@ -2,18 +2,18 @@ import { Users, Flag, Mail, ShieldAlert, GraduationCap, ScanSearch, Loader2, Cli
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 const cards = [
-  { key: "users", label: "Users", icon: Users, accent: "text-sky-500 bg-sky-500/10" },
-  { key: "reports", label: "Scam Reports", icon: Flag, accent: "text-red-500 bg-red-500/10" },
-  { key: "pending_reports", label: "Pending Reports", icon: ClipboardCheck, accent: "text-amber-500 bg-amber-500/10" },
-  { key: "messages", label: "Contact Messages", icon: Mail, accent: "text-violet-500 bg-violet-500/10" },
-  { key: "scam_types", label: "Scam Articles", icon: ShieldAlert, accent: "text-orange-500 bg-orange-500/10" },
-  { key: "safety_tips", label: "Safety Tips", icon: Lightbulb, accent: "text-emerald-500 bg-emerald-500/10" },
-  { key: "quiz_taken", label: "Quizzes Taken", icon: GraduationCap, accent: "text-pink-500 bg-pink-500/10" },
-  { key: "detections", label: "AI Detections Run", icon: ScanSearch, accent: "text-cyan-500 bg-cyan-500/10" },
+  { key: "users", label: "Users", icon: Users, accent: "text-primary bg-accent" },
+  { key: "reports", label: "Scam Reports", icon: Flag, accent: "text-primary bg-accent" },
+  { key: "pending_reports", label: "Pending Reports", icon: ClipboardCheck, accent: "text-primary bg-accent" },
+  { key: "messages", label: "Contact Messages", icon: Mail, accent: "text-primary bg-accent" },
+  { key: "scam_types", label: "Scam Articles", icon: ShieldAlert, accent: "text-primary bg-accent" },
+  { key: "safety_tips", label: "Safety Tips", icon: Lightbulb, accent: "text-primary bg-accent" },
+  { key: "quiz_taken", label: "Quizzes Taken", icon: GraduationCap, accent: "text-primary bg-accent" },
+  { key: "detections", label: "AI Detections Run", icon: ScanSearch, accent: "text-primary bg-accent" },
 ];
 
 export const Overview = ({ stats }) => {
-  if (!stats) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-sky-500" /></div>;
+  if (!stats) return <div className="flex justify-center py-10 sm:py-12"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
   return (
     <div data-testid="admin-overview-panel">

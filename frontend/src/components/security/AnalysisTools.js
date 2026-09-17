@@ -61,7 +61,7 @@ export function CooldownBanner({ seconds, label }) {
   if (!seconds) return null;
   return (
     <div
-      className="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600 dark:text-amber-400"
+      className="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600"
       data-testid="rate-limit-banner"
       role="status"
     >
@@ -245,7 +245,7 @@ export function ChatTab({ resumeSession }) {
         {messages.length === 0 && (
           <div className="h-full flex flex-col items-center justify-center text-center px-6">
             <div className="w-16 h-16 rounded-2xl bg-sky-500/10 flex items-center justify-center mb-5">
-              <Bot className="w-8 h-8 text-sky-500" strokeWidth={1.5} />
+              <Bot className="w-8 h-8 text-primary" strokeWidth={1.5} />
             </div>
             <h3 className="font-heading text-lg font-semibold tracking-tight">Hi, I'm SafeBot</h3>
             <p className="text-sm text-muted-foreground mt-2 max-w-sm">Ask me anything about online scams, cybersecurity, or how to stay safe. I'm here 24/7.</p>
@@ -256,9 +256,9 @@ export function ChatTab({ resumeSession }) {
                   onClick={() => send(s)}
                   disabled={streaming || historyLoading || !!cooldown}
                   data-testid="chat-suggestion-button"
-                  className="text-left text-xs rounded-lg border px-4 py-3 hover:border-sky-500/50 hover:text-sky-500 transition-colors duration-200"
+                  className="text-left text-xs rounded-lg border px-4 py-3 hover:border-sky-500/50 hover:text-primary transition-colors duration-200"
                 >
-                  <Sparkles className="w-3.5 h-3.5 inline mr-1.5 text-sky-500" /> {s}
+                  <Sparkles className="w-3.5 h-3.5 inline mr-1.5 text-primary" /> {s}
                 </button>
               ))}
             </div>
@@ -268,7 +268,7 @@ export function ChatTab({ resumeSession }) {
           <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             {m.role === "assistant" && (
               <div className="w-8 h-8 rounded-lg bg-sky-500/10 flex items-center justify-center shrink-0">
-                <Bot className="w-4.5 h-4.5 text-sky-500 w-5 h-5" />
+                <Bot className="w-4.5 h-4.5 text-primary w-5 h-5" />
               </div>
             )}
             <div
@@ -296,7 +296,7 @@ export function ChatTab({ resumeSession }) {
       </div>
       <div className="border-t p-4 space-y-3">
         {historyLoading && <p role="status" className="text-xs text-muted-foreground">Loading conversation…</p>}
-        {chatError && <p role="alert" className="text-sm text-red-700 dark:text-red-400">{chatError}</p>}
+        {chatError && <p role="alert" className="text-sm text-red-700">{chatError}</p>}
         <CooldownBanner seconds={cooldown} label="SafeBot needs a short break — too many messages at once." />
         <div className="flex gap-3">
           <Textarea
@@ -370,7 +370,7 @@ export function DetectTab() {
           data-testid="detect-message-input"
         />
         <p id="detect-help" className="text-xs text-muted-foreground mt-2">Remove passwords, OTPs and personal details before submitting. Minimum 5 characters.</p>
-        <p id="detect-error" role="alert" className="text-sm text-red-700 dark:text-red-400 mt-2">{error}</p>
+        <p id="detect-error" role="alert" className="text-sm text-red-700 mt-2">{error}</p>
         <div className="mt-4 space-y-3">
           <CooldownBanner seconds={cooldown} label="Analysis limit reached." />
           <Button onClick={analyze} disabled={loading || !!cooldown} className="w-full rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground" data-testid="detect-analyze-button">
@@ -531,7 +531,7 @@ export function QRTab({ active = true }) {
           </div>
         )}
 
-        <p role="alert" className="text-sm text-red-700 dark:text-red-400 mt-3">{error}</p>
+        <p role="alert" className="text-sm text-red-700 mt-3">{error}</p>
         {decoding && <p role="status" className="text-sm mt-3">Decoding QR image…</p>}
         <p className="text-xs text-muted-foreground mt-3">Images up to 10 MB. Decoded content is sent for AI analysis.</p>
         <div className="mt-4 space-y-3">
