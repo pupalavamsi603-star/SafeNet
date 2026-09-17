@@ -12,6 +12,7 @@ jest.mock("../../lib/api", () => ({
   getRetryAfterSeconds: (e) => e.response?.status === 429 ? 2 : null,
   formatApiErrorDetail: (detail) => detail || "Unable to connect. Try again.",
 }));
+jest.mock("./PhonePairing", () => ({ PhonePairing: () => null }));
 jest.mock("html5-qrcode", () => ({ Html5Qrcode: jest.fn() }));
 
 let container, root;
@@ -133,4 +134,34 @@ test("failed chat preserves the question for retry and presents a persistent err
     expect(container.querySelector("textarea").value).toBe("What is phishing?");
     expect(container.querySelector('[role="alert"]').textContent).toContain("ready to retry");
   } finally { globalThis.fetch = previousFetch; }
+});
+
+
+test("phone camera reuses the decoder and delivers content without duplicate AI calls", async () => {
+  let detected;
+  const scanner = { start: jest.fn(async (camera, options, callback) => { detected = callback; }), stop: jest.fn().mockResolvedValue(), clear: jest.fn() };
+  Html5Qrcode.mockImplementation(() => scanner);
+  const deliver = jest.fn().mockResolvedValue(true);
+  await render(<QRTab mobile onDecoded={deliver} />);
+  await click('[data-testid="qr-mobile-camera-button"]');
+  await act(async () => detected("https://example.com"));
+  expect(deliver).toHaveBeenCalledWith("https://example.com");
+  expect(api.post).not.toHaveBeenCalled();
+  expect(scanner.stop).toHaveBeenCalled();
+});
+
+test("QR image upload still decodes locally and uses the original analysis endpoint", async () => {
+  const scanner = { scanFile: jest.fn().mockResolvedValue("https://example.com"), clear: jest.fn() };
+  Html5Qrcode.mockImplementation(() => scanner);
+  api.post.mockResolvedValue({ data: { risk_level: "safe", explanation: "Real endpoint response" } });
+  await render(<QRTab />);
+  const file = new File(["image"], "qr.png", { type: "image/png" });
+  await act(async () => {
+    const input = container.querySelector('[data-testid="qr-file-input"]');
+    Object.defineProperty(input, "files", { value: [file] });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  expect(scanner.scanFile).toHaveBeenCalledWith(file, false);
+  expect(api.post).toHaveBeenCalledWith("/ai/qr", { content: "https://example.com" });
+  expect(container.textContent).toContain("Real endpoint response");
 });

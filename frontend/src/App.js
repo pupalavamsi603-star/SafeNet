@@ -7,6 +7,7 @@ import { Footer } from "./components/Footer";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { SplashGate } from "./components/SplashGate";
+import PhoneQR from "./pages/PhoneQR";
 import Home from "./pages/Home";
 import About from "./pages/About";
 import ScamTypes from "./pages/ScamTypes";
@@ -30,13 +31,13 @@ const NO_NAVBAR_ROUTES = ["/login"];
 
 function SiteFooter() {
   const { pathname } = useLocation();
-  if (NO_FOOTER_ROUTES.includes(pathname)) return null;
+  if (pathname.startsWith("/qr/phone/") || NO_FOOTER_ROUTES.includes(pathname)) return null;
   return <Footer />;
 }
 
 function SiteNavbar() {
   const { pathname } = useLocation();
-  if (NO_NAVBAR_ROUTES.includes(pathname)) return null;
+  if (pathname.startsWith("/qr/phone/") || NO_NAVBAR_ROUTES.includes(pathname)) return null;
   return <Navbar />;
 }
 
@@ -52,6 +53,7 @@ function App() {
               <main id="main-content" tabIndex={-1} className="flex-1">
                 <Routes>
                   <Route path="/" element={<Home />} />
+                  <Route path="/qr/phone/:id" element={<PhoneQR />} />
                   <Route path="/about" element={<About />} />
                   <Route path="/scams" element={<ScamTypes />} />
                   <Route path="/scams/:slug" element={<ScamDetail />} />

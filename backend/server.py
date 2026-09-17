@@ -31,7 +31,10 @@ JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
 
+from qr_pairing import router as qr_pairing_router, shutdown_pairing
+
 app = FastAPI(title="SafeNet API")
+app.include_router(qr_pairing_router)
 api_router = APIRouter(prefix="/api")
 
 logging.basicConfig(level=logging.INFO)
@@ -1048,4 +1051,5 @@ async def seed():
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    await shutdown_pairing()
     client.close()

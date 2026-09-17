@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import { toast } from "sonner";
 import { API, api, getRetryAfterSeconds, formatApiErrorDetail } from "../../lib/api";
 import { nativeAuthHeaders } from "../../lib/nativeAuth";
+import { PhonePairing } from "./PhonePairing";
 import { ScanResult } from "./ScanResult";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
@@ -386,7 +387,15 @@ export function DetectTab() {
   );
 }
 
-export function QRTab({ active = true }) {
+export function QRTab({ active = true, mobile = false, onDecoded }) {
+  const [phoneScreen, setPhoneScreen] = useState(() => mobile || !!window.matchMedia?.("(max-width: 767px)").matches);
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const query = window.matchMedia("(max-width: 767px)");
+    const update = () => setPhoneScreen(mobile || query.matches);
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, [mobile]);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -423,8 +432,10 @@ export function QRTab({ active = true }) {
     setError("");
     setResult(null);
     try {
+      if (onDecoded) { await onDecoded(decoded); return true; }
       const { data } = await api.post("/ai/qr", { content: decoded });
       setResult({ ...data, decoded });
+      return true;
     } catch (e) {
       const secs = getRetryAfterSeconds(e);
       if (secs) {
@@ -433,6 +444,7 @@ export function QRTab({ active = true }) {
       } else {
         setError(formatApiErrorDetail(e.response?.data?.detail));
       }
+      return false;
     } finally {
       setLoading(false);
     }
@@ -498,7 +510,7 @@ export function QRTab({ active = true }) {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" data-testid="ai-qr-panel">
+    <div className={`grid grid-cols-1 ${onDecoded ? "" : "lg:grid-cols-2"} gap-6`} data-testid="ai-qr-panel">
       <div className="rounded-xl border bg-card p-5 sm:p-6">
         <h3 className="font-heading text-base font-semibold tracking-tight flex items-center gap-2">
           <QrCode className="w-5 h-5 text-primary" /> Scan a QR code
@@ -507,6 +519,9 @@ export function QRTab({ active = true }) {
           Found a QR on a poster, parcel, payment request, or message? Check it here <span className="font-medium text-foreground">before</span> you open it.
         </p>
 
+        {!phoneScreen && !onDecoded && <PhonePairing active={active} disabled={loading || decoding || scanning || !!cooldown} onDecoded={async (decoded) => { setDecodedContent(decoded); await stopCamera(); return analyze(decoded); }} />}
+        {phoneScreen && !scanning && <Button onClick={startCamera} disabled={loading || decoding || !!cooldown} className="mt-4 w-full" data-testid="qr-mobile-camera-button"><Camera className="w-4 h-4 mr-2" />Scan QR with camera</Button>}
+        {phoneScreen && <p className="mt-3 text-sm text-muted-foreground">Point your camera at the QR code.</p>}
         {/* camera reader mounts here */}
         <div id={readerId} className={`mt-4 rounded-xl overflow-hidden ${scanning ? "border" : ""}`} />
 
@@ -536,19 +551,19 @@ export function QRTab({ active = true }) {
         <p className="text-xs text-muted-foreground mt-3">Images up to 10 MB. Decoded content is sent for AI analysis.</p>
         <div className="mt-4 space-y-3">
           <CooldownBanner seconds={cooldown} label="Scan limit reached." />
-          {!scanning ? (
+          {!scanning && !phoneScreen ? (
             <Button onClick={startCamera} disabled={loading || decoding || !!cooldown} variant="outline" className="w-full rounded-lg" data-testid="qr-camera-button">
               <Camera className="w-4 h-4 mr-2" /> Scan with camera
             </Button>
-          ) : (
+          ) : scanning ? (
             <Button onClick={stopCamera} variant="outline" className="w-full rounded-lg border-red-500/40 text-red-500 hover:text-red-600" data-testid="qr-stop-button">
               <X className="w-4 h-4 mr-2" /> Stop camera
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
 
-      <ScanResult result={result} loading={loading} kind="qr" decoded={decodedContent} />
+      {!onDecoded && <ScanResult result={result} loading={loading} kind="qr" decoded={decodedContent} />}
     </div>
   );
 }

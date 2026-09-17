@@ -162,3 +162,12 @@ uses matching `GOOGLE_CLIENT_ID` and `REACT_APP_GOOGLE_CLIENT_ID` values.
 Only public origins and OAuth client IDs belong in frontend variables. AI keys stay server-side.
 
 See [the implementation and verification record](test_reports/homepage-restructure.md) for the feature map and test results.
+
+
+### Phone-to-desktop QR scanning
+
+Desktop QR tools create a temporary pairing QR linking to `/qr/phone/:id` on the current frontend origin (or optional `REACT_APP_PUBLIC_URL`). Open it with your phone's normal camera, then choose **Scan QR with camera** in the mobile browser. Decoded content travels over authenticated WebSockets to the original desktop, which calls the existing `/api/ai/qr` endpoint and renders its normal result. Image upload, drag/drop and desktop camera scanning remain available; narrow screens prioritize camera scanning.
+
+Pairing expires after five minutes. Desktop and phone credentials are separate, unguessable capabilities; phone tokens travel in the pairing URL fragment and socket credentials in the first frame. The first phone claims the session with a per-tab device credential. Sessions and decoded content live only in backend memory and are removed on completion, cancellation or expiry. The existing QR analysis endpoint retains its existing scan-history behavior. Keep pairing links private.
+
+The configured Render service runs one Uvicorn worker. Realtime pairing deliberately uses that existing single process and needs no additional database or infrastructure. A backend restart invalidates open sessions; start a new scan. If the service is later scaled to multiple workers/instances, session relay must move to a shared store/pub-sub. HTTPS/WSS and a permitted frontend `CORS_ORIGINS` origin are required in production; the added `websockets` dependency enables Uvicorn WebSocket support.
