@@ -41,9 +41,8 @@ export function URLTool() {
       else setError(formatApiErrorDetail(err.response?.data?.detail));
     } finally { setLoading(false); }
   };
-  return (
-    <div className="grid lg:grid-cols-[1.25fr_1fr] gap-5" id="url-check">
-      <form onSubmit={check} className="rounded-xl border bg-card p-5 sm:p-6" noValidate>
+  const inputPanel = (
+      <form onSubmit={check} className="url-input-panel rounded-xl border bg-card p-5 sm:p-6" noValidate>
         <h3 className="font-semibold text-lg flex gap-2 items-center"><Link2 className="w-5 h-5 text-primary" /> Check a suspicious link</h3>
         <p className="text-sm text-muted-foreground mt-2 mb-5">Check a website from an email, message or social post before you open it.</p>
         <label htmlFor="url-input" className="block text-sm font-medium mb-2">Website or URL</label>
@@ -55,7 +54,8 @@ export function URLTool() {
         <p id="url-help" className="text-xs text-muted-foreground mt-3">Checks URL patterns with AI. SafeNet does not open or download the link.</p>
         <div className="mt-3"><CooldownBanner seconds={cooldown} label="URL scan limit reached." /></div>
       </form>
-      <ScanResult result={result} loading={loading} />
-    </div>
+  );
+  return (
+    <ScanResult result={result} loading={loading} inputPanel={inputPanel} />
   );
 }
