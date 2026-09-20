@@ -26,16 +26,17 @@
 
 .home-container { width: min(1160px, 100%); margin-inline: auto; padding-inline: 24px; }
 .safenet-home h1, .safenet-home h2, .safenet-home h3 { font-family: 'IBM Plex Sans', sans-serif; }
-.home-intro { padding: 36px 0 25px; background: hsl(var(--background)); }
+.home-intro { padding: 32px 0 18px; background: hsl(var(--background)); }
 .eyebrow { display: flex; align-items: center; gap: 8px; color: hsl(var(--primary)); font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
 .home-intro h1 { margin-top: 12px; font-size: clamp(28px, 3.3vw, 42px); font-weight: 600; line-height: 1.15; letter-spacing: -.035em; }
 .intro-copy { color: hsl(var(--muted-foreground)); max-width: 680px; margin-top: 12px; font-size: 15px; line-height: 1.65; }
-.security-section { padding-top: 22px; padding-bottom: 25px; }
+.security-section { padding-top: 12px; padding-bottom: 18px; }
 .section-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 16px; }
 .section-heading h2, .faq-section h2 { font-size: 22px; font-weight: 600; letter-spacing: -.025em; line-height: 1.3; }
 .security-section .section-heading h2 { font-size: 17px; }
+.security-section .section-heading { margin-bottom: 12px; }
 .tool-grid { display: grid; align-items: stretch; width: 100%; height: auto; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; background: transparent; padding: 0; }
-.tool-choice { position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 10px; padding: 16px; white-space: normal; text-align: left; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 12px; color: hsl(var(--foreground)); min-height: 130px; box-shadow: none; transition: border-color .15s, background-color .15s; }
+.tool-choice { position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 7px; padding: 13px 16px; white-space: normal; text-align: left; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 12px; color: hsl(var(--foreground)); min-height: 108px; box-shadow: none; transition: border-color .15s, background-color .15s; }
 .tool-choice:hover { border-color: hsl(var(--primary) / .65); }
 .tool-choice[data-state=active] { background: hsl(var(--accent)); border-color: hsl(var(--primary)); box-shadow: 0 0 0 1px hsl(var(--primary)); color: hsl(var(--foreground)); }
 .tool-icon { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; color: hsl(var(--primary)); border-radius: 8px; background: hsl(var(--accent)); }
@@ -43,12 +44,17 @@
 .tool-copy { display: flex; flex-direction: column; gap: 5px; }
 .tool-name { font-size: 15px; font-weight: 600; }
 .tool-description { font-size: 12px; font-weight: 400; line-height: 1.5; color: hsl(var(--muted-foreground)); }
-.tool-arrow { position: absolute; right: 16px; top: 21px; color: hsl(var(--muted-foreground)); }
+.tool-arrow { position: absolute; right: 16px; top: 18px; color: hsl(var(--muted-foreground)); }
 .tool-panel[hidden] { display: none; }
+.safenet-home .tool-panel { margin-top: 14px; }
+.safenet-home #url-check > form,
+.safenet-home #url-check > .scan-result { padding: 18px; }
+.safenet-home #url-check form > h3 + p { margin-bottom: 14px; }
+.safenet-home #url-check form > div:last-child:empty { display: none; }
 .security-workspace button, .app-header button { min-height: 44px; }
 .app-header button { min-width: 44px; }
 .security-workspace textarea, .security-workspace input { font-size: 16px; }
-.workspace-note { display: flex; justify-content: center; align-items: center; gap: 7px; font-size: 12px; line-height: 1.5; color: hsl(var(--muted-foreground)); margin-top: 17px; }
+.workspace-note { display: flex; justify-content: center; align-items: center; gap: 7px; font-size: 12px; line-height: 1.5; color: hsl(var(--muted-foreground)); margin-top: 12px; }
 .how-section { background: hsl(var(--accent) / .55); border-block: 1px solid hsl(var(--border)); }
 .how-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 25px; padding-block: 25px; }
 .how-item { display: flex; gap: 12px; }
@@ -119,7 +125,7 @@
 @keyframes assistant-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 @media (min-width: 768px) and (max-width: 1023px) {
   .tool-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .tool-choice { min-height: 115px; }
+  .tool-choice { min-height: 108px; }
 }
 @media (max-width: 767px) {
   .home-container { padding-inline: 18px; }
@@ -128,10 +134,12 @@
   .intro-copy { font-size: 14px; }
   .eyebrow { font-size: 10px; letter-spacing: .1em; }
   .tool-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .tool-choice { min-height: 120px; padding: 12px; gap: 8px; }
+  .tool-choice { min-height: 108px; padding: 12px; gap: 7px; }
   .tool-name { font-size: 14px; }
   .tool-description { font-size: 11px; }
-  .tool-arrow { right: 12px; top: 20px; }
+  .tool-arrow { right: 12px; top: 17px; }
+  .safenet-home #url-check > form,
+  .safenet-home #url-check > .scan-result { padding: 16px; }
   .workspace-note { align-items: flex-start; justify-content: flex-start; }
   .how-grid, .resource-grid, .faq-section { grid-template-columns: 1fr; gap: 18px; }
   .resources-section { padding-top: 30px; }
