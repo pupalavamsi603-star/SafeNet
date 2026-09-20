@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link2, QrCode, MessageSquareWarning, Bot, ArrowUpRight } from "lucide-react";
+import { Link2, QrCode, MessageSquareWarning, ArrowUpRight } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { DetectTab, QRTab } from "./AnalysisTools";
 import { URLTool } from "./URLTool";
@@ -8,7 +8,6 @@ const tools = [
   { id: "url", name: "Scan URL", description: "Check a suspicious website or link", icon: Link2 },
   { id: "qr", name: "Scan QR Code", description: "Upload an image or use your camera", icon: QrCode },
   { id: "detect", name: "Scan Text / Message", description: "Spot scam signals in a message", icon: MessageSquareWarning },
-  { id: "chat", name: "Ask AI", description: "Get answers about cybersecurity", icon: Bot },
 ];
 
 export function SecurityWorkspace({ value, onValueChange }) {
@@ -16,7 +15,6 @@ export function SecurityWorkspace({ value, onValueChange }) {
   const select = (next) => {
     setVisited((old) => new Set([...old, next]));
     onValueChange(next);
-    if (next === "chat") window.dispatchEvent(new CustomEvent("safenet:open-assistant"));
   };
   return (
     <Tabs value={value} onValueChange={select} className="security-workspace">
@@ -34,7 +32,6 @@ export function SecurityWorkspace({ value, onValueChange }) {
           {id === "url" && <URLTool />}
           {id === "qr" && <QRTab active={value === "qr"} />}
           {id === "detect" && <DetectTab />}
-          {id === "chat" && <div className="assistant-launcher"><span className="tool-icon"><Bot className="w-5 h-5" /></span><div><h3 className="font-heading text-lg font-semibold">SafeNet AI is ready</h3><p className="text-sm text-muted-foreground mt-1">Ask about suspicious messages, scams, passwords, or safer browsing.</p></div><button className="assistant-launcher-button" onClick={() => window.dispatchEvent(new CustomEvent("safenet:open-assistant"))}>Open assistant</button></div>}
         </TabsContent>
       ))}
     </Tabs>

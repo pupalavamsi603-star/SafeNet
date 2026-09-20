@@ -31,7 +31,7 @@ export default function Home() {
         </div>
       </section>
       <section className="home-container security-section" aria-labelledby="tools-title">
-        <div className="section-heading"><h2 id="tools-title">What would you like to check?</h2><span className="text-xs text-muted-foreground hidden sm:block">Four tools. One place to stay informed.</span></div>
+        <div className="section-heading"><h2 id="tools-title">What would you like to check?</h2><span className="text-xs text-muted-foreground hidden sm:block">Three tools. One place to stay informed.</span></div>
         <SecurityWorkspace value={tool} onValueChange={setTool} />
         <p className="workspace-note"><ShieldCheck className="w-4 h-4 shrink-0" /> AI guidance to help you decide. Never submit passwords, OTPs or card details.</p>
       </section>

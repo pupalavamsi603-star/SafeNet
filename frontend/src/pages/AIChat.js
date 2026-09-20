@@ -4,7 +4,7 @@ import { SecurityWorkspace } from "../components/security/SecurityWorkspace";
 export default function AIChat() {
   const [params, setParams] = useSearchParams();
   const requested = params.get("tab");
-  const tab = ["url", "qr", "detect", "chat"].includes(requested) ? requested : "chat";
+  const tab = ["url", "qr", "detect"].includes(requested) ? requested : "url";
   const select = (value) => { const next = new URLSearchParams(params); next.set("tab", value); setParams(next, { replace: true }); };
   return (
     <div className="home-container py-8 sm:py-12" data-testid="ai-page">

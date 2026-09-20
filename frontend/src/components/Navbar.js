@@ -13,7 +13,6 @@ const links = [
   { to: "/", label: "Home" },
   { to: "/scams", label: "Scam Types" },
   { to: "/tips", label: "Safety Tips" },
-  { to: "/ai", label: "AI Assistant" },
   { to: "/report", label: "Report Scam" },
 ];
 
