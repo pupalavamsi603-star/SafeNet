@@ -74,7 +74,7 @@ export function CooldownBanner({ seconds, label }) {
   );
 }
 
-export function ChatTab({ resumeSession }) {
+export function ChatTab({ resumeSession, compact = false }) {
   const { user } = useAuth();
   const uid = user?.id || "";
   const [messages, setMessages] = useState([]);
@@ -228,7 +228,7 @@ export function ChatTab({ resumeSession }) {
   };
 
   return (
-    <div className="rounded-xl border bg-card flex flex-col h-[520px]" data-testid="ai-chat-panel">
+    <div className={`${compact ? "floating-chat-inner h-full" : "rounded-xl border bg-card h-[520px]"} flex flex-col min-h-0`} data-testid="ai-chat-panel">
       <div className="flex items-center justify-between border-b px-4 py-2.5">
         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">SafeBot</p>
         <Button
@@ -242,15 +242,15 @@ export function ChatTab({ resumeSession }) {
           <MessageSquarePlus className="w-3.5 h-3.5" /> New chat
         </Button>
       </div>
-      <div className="flex-1 overflow-y-auto p-6 space-y-5" role="log" aria-live="polite" aria-atomic="false" aria-label="Conversation with SafeBot">
+      <div className={`flex-1 overflow-y-auto space-y-5 ${compact ? "p-4" : "p-6"}`} role="log" aria-live="polite" aria-atomic="false" aria-label="Conversation with SafeBot">
         {messages.length === 0 && (
-          <div className="h-full flex flex-col items-center justify-center text-center px-6">
+          <div className={`h-full flex flex-col items-center justify-center text-center ${compact ? "px-2 py-4" : "px-6"}`}>
             <div className="w-16 h-16 rounded-2xl bg-sky-500/10 flex items-center justify-center mb-5">
               <Bot className="w-8 h-8 text-primary" strokeWidth={1.5} />
             </div>
             <h3 className="font-heading text-lg font-semibold tracking-tight">Hi, I'm SafeBot</h3>
             <p className="text-sm text-muted-foreground mt-2 max-w-sm">Ask me anything about online scams, cybersecurity, or how to stay safe. I'm here 24/7.</p>
-            <div className="mt-7 grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-lg">
+            <div className={`mt-7 grid grid-cols-1 ${compact ? "" : "sm:grid-cols-2"} gap-2.5 w-full max-w-lg`}>
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s}

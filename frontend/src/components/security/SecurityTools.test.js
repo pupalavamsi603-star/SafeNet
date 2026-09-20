@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { URLTool, validateURL } from "./URLTool";
 import { ChatTab, DetectTab, QRTab } from "./AnalysisTools";
-import { ScanResult } from "./ScanResult";
+import { ScanResult, riskCategory } from "./ScanResult";
 import { api } from "../../lib/api";
 import { Html5Qrcode } from "html5-qrcode";
 
@@ -93,6 +93,18 @@ test("unrecognized verdicts display unable to verify without inventing a score",
   await render(<ScanResult result={{ explanation: "Incomplete provider response" }} />);
   expect(container.textContent).toContain("Unable to verify");
   expect(container.textContent).not.toContain("/ 100");
+});
+
+test("risk meter uses the real score and exact category boundaries", async () => {
+  expect(riskCategory(30).label).toBe("Safe");
+  expect(riskCategory(31).label).toBe("Minimal risk");
+  expect(riskCategory(60).label).toBe("Minimal risk");
+  expect(riskCategory(61).label).toBe("High risk");
+  await render(<ScanResult kind="message" result={{ risk_level: "suspicious", risk_score: 47, explanation: "Review this message.", red_flags: ["Urgent request"], advice: ["Verify the sender"] }} />);
+  expect(container.querySelector('[role="meter"]').getAttribute("aria-valuenow")).toBe("47");
+  expect(container.querySelector('[data-testid="message-risk-marker"]').style.left).toBe("47%");
+  expect(container.textContent).toContain("Urgent request");
+  expect(container.textContent).toContain("Verify the sender");
 });
 
 test("closing QR tool stops and clears the camera", async () => {

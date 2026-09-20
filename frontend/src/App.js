@@ -22,6 +22,7 @@ import Register from "./pages/Register";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import { FloatingSafeNetAI } from "./components/FloatingSafeNetAI";
 
 // The auth pages use their own full-height split layout and already carry a
 // copyright line, so the site footer is duplicate chrome there.
@@ -71,6 +72,7 @@ function App() {
               </main>
               <SiteFooter />
             </div>
+            <FloatingSafeNetAI />
             <Toaster theme="light" position="top-right" richColors />
           </BrowserRouter>
         </AuthProvider>
