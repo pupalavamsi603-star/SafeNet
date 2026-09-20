@@ -2,14 +2,11 @@ import time
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from starlette.websockets import WebSocketDisconnect
 import qr_pairing as pairing
 
 @pytest.fixture
-def client(monkeypatch):
-    monkeypatch.setenv("CORS_ORIGINS", "http://localhost:3000")
-    app = FastAPI()
-    app.include_router(pairing.router)
+def client():
+    app = FastAPI(); app.include_router(pairing.router)
     pairing.creation_times.clear()
     with TestClient(app) as client:
         yield client
@@ -21,88 +18,69 @@ def create(client):
     assert response.headers["cache-control"] == "no-store"
     return response.json()
 
-def auth(ws, session, role, device="test-phone-device-123456789"):
-    ws.send_json({"role": role, "token": session[role + "_token"], "device": device})
+def exchange(client, session, role, **action):
+    return client.post('/api/qr-pair/' + session['id'] + '/exchange', json={
+        'role': role, 'token': session[role + '_token'],
+        **({'device': 'phone-device-1234567890'} if role == 'phone' else {}), **action})
 
-def test_relay_completion_and_cleanup(client):
-    session = create(client)
-    with client.websocket_connect('/api/qr-pair/' + session['id']) as desktop:
-        auth(desktop, session, 'desktop')
-        assert desktop.receive_json()['state'] == 'waiting'
-        desktop.receive_json()
-        with client.websocket_connect('/api/qr-pair/' + session['id']) as phone:
-            auth(phone, session, 'phone')
-            assert phone.receive_json()['state'] == 'connected'
-            assert desktop.receive_json()['state'] == 'connected'
-            phone.send_json({'type': 'ready'})
-            assert desktop.receive_json()['state'] == 'ready'
-            assert phone.receive_json()['state'] == 'ready'
-            phone.send_json({'type': 'scan', 'content': 'https://example.com'})
-            assert phone.receive_json()['state'] == 'detected'
-            assert desktop.receive_json() == {'state': 'detected', 'content': 'https://example.com'}
-            desktop.send_json({'type': 'analyzing'})
-            assert phone.receive_json()['state'] == 'analyzing'
-            desktop.send_json({'type': 'complete'})
-            assert phone.receive_json()['state'] == 'complete'
-            assert desktop.receive_json()['state'] == 'complete'
-            time.sleep(.02)
-            assert session['id'] not in pairing.sessions
+def test_https_handoff_and_completion(client):
+    s = create(client)
+    assert exchange(client, s, 'desktop').json()['state'] == 'waiting'
+    assert exchange(client, s, 'phone').json()['state'] == 'connected'
+    assert exchange(client, s, 'desktop').json()['state'] == 'connected'
+    assert exchange(client, s, 'phone', type='scan', content='https://example.com').json()['content'] is None
+    assert exchange(client, s, 'desktop').json()['content'] == 'https://example.com'
+    exchange(client, s, 'desktop', type='analyzing')
+    assert exchange(client, s, 'phone').json()['state'] == 'analyzing'
+    exchange(client, s, 'desktop', type='complete')
+    assert pairing.sessions[s['id']]['content'] is None
+    assert exchange(client, s, 'phone').json()['state'] == 'complete'
+    assert exchange(client, s, 'phone').json()['state'] == 'complete'
 
-def test_cross_session_and_role_access_rejected(client):
+def test_cross_session_role_and_device_isolation(client):
     a, b = create(client), create(client)
-    for token, role in [(a['phone_token'], 'desktop'), (b['phone_token'], 'phone')]:
-        with client.websocket_connect('/api/qr-pair/' + a['id']) as ws:
-            ws.send_json({'role': role, 'token': token, 'device': 'test-device-1234567890'})
-            with pytest.raises(WebSocketDisconnect) as error:
-                ws.receive_json()
-            assert error.value.code == 1008
+    assert exchange(client, a, 'phone', token=b['phone_token']).status_code == 403
+    assert exchange(client, a, 'desktop', token=a['phone_token']).status_code == 403
+    assert exchange(client, a, 'phone').status_code == 200
+    assert exchange(client, a, 'phone', device='another-phone-1234567890').status_code == 403
+    assert exchange(client, a, 'phone', type='complete').status_code == 403
+    assert exchange(client, a, 'desktop', type='scan', content='https://example.com').status_code == 403
 
-def test_invalid_and_expired_sessions(client, monkeypatch):
-    with client.websocket_connect('/api/qr-pair/missing') as ws:
-        ws.send_json({'role': 'phone', 'token': 'unknown'})
-        assert ws.receive_json()['state'] == 'expired'
-    monkeypatch.setattr(pairing, 'TTL', .05)
-    session = create(client)
-    with client.websocket_connect('/api/qr-pair/' + session['id']) as ws:
-        auth(ws, session, 'desktop')
-        ws.receive_json(); ws.receive_json()
-        assert ws.receive_json()['state'] == 'expired'
-        assert session['id'] not in pairing.sessions
+def test_expiry_and_invalid_session(client, monkeypatch):
+    s = create(client)
+    assert exchange(client, {**s, 'id': 'missing'}, 'phone').status_code == 410
+    pairing.sessions[s['id']]['expires'] = time.time() - 1
+    assert exchange(client, s, 'phone').status_code == 410
+    assert s['id'] not in pairing.sessions
+    monkeypatch.setattr(pairing, 'TTL', .03)
+    s = create(client); time.sleep(.06)
+    assert s['id'] not in pairing.sessions
 
-def test_phone_claim_and_validation(client):
-    session = create(client)
-    with client.websocket_connect('/api/qr-pair/' + session['id']) as phone:
-        auth(phone, session, 'phone')
-        phone.receive_json()
-        phone.send_json({'type': 'scan', 'content': 'x' * 6001})
-        assert phone.receive_json()['state'] == 'invalid'
-    time.sleep(.02)
-    with client.websocket_connect('/api/qr-pair/' + session['id']) as intruder:
-        auth(intruder, session, 'phone', 'another-device-1234567890')
-        with pytest.raises(WebSocketDisconnect): intruder.receive_json()
-    with client.websocket_connect('/api/qr-pair/' + session['id']) as phone:
-        auth(phone, session, 'phone')
-        assert phone.receive_json()['state'] == 'connected'
-
-def test_origin_and_creation_rate_limit(client):
-    with pytest.raises(WebSocketDisconnect):
-        with client.websocket_connect('/api/qr-pair/missing', headers={'origin': 'https://untrusted.example'}): pass
-    for _ in range(20): create(client)
+def test_validation_and_creation_rate_limit(client):
+    s = create(client)
+    for content in [' ', 'x' * 6001, '\x00']:
+        assert exchange(client, s, 'phone', type='scan', content=content).status_code == 422
+    for _ in range(19): create(client)
     assert client.post('/api/qr-pair').status_code == 429
 
+def test_delivery_retries_are_idempotent_and_buffered(client):
+    s = create(client)
+    exchange(client, s, 'phone', type='scan', content='original')
+    exchange(client, s, 'phone', type='scan', content='replacement')
+    assert exchange(client, s, 'desktop').json()['content'] == 'original'
+    exchange(client, s, 'desktop', type='analyzing')
+    exchange(client, s, 'desktop', type='failed')
+    assert pairing.sessions[s['id']]['content'] is None
+    assert exchange(client, s, 'phone').json()['state'] == 'failed'
+    exchange(client, s, 'desktop', type='cancel')
+    assert s['id'] not in pairing.sessions
 
-def test_buffered_scan_survives_desktop_reconnect_and_failure_cleans_up(client):
-    session = create(client)
-    with client.websocket_connect('/api/qr-pair/' + session['id']) as phone:
-        auth(phone, session, 'phone'); phone.receive_json()
-        phone.send_json({'type': 'scan', 'content': 'https://example.com'})
-        assert phone.receive_json()['state'] == 'detected'
-        with client.websocket_connect('/api/qr-pair/' + session['id']) as desktop:
-            auth(desktop, session, 'desktop')
-            assert desktop.receive_json()['content'] == 'https://example.com'
-            desktop.receive_json()
-            desktop.send_json({'type': 'failed'})
-            assert phone.receive_json()['state'] == 'failed'
-            assert desktop.receive_json()['state'] == 'failed'
-            time.sleep(.02)
-            assert session['id'] not in pairing.sessions
+def test_phone_liveness_and_no_cache(client):
+    s = create(client)
+    exchange(client, s, 'phone')
+    pairing.sessions[s['id']]['phone_seen'] -= 20
+    response = exchange(client, s, 'desktop')
+    assert response.json()['state'] == 'disconnected'
+    assert response.headers['cache-control'] == 'no-store'
+    exchange(client, s, 'phone')
+    assert exchange(client, s, 'desktop').json()['state'] == 'connected'

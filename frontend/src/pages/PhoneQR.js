@@ -8,7 +8,7 @@ import { Button } from "../components/ui/button";
 const labels = { connected: "Phone connected. Ready to scan.", ready: "Point your camera at the QR code", detected: "QR code detected. Sending to SafeNet…", analyzing: "Sent to desktop. Analyzing…", complete: "Analysis sent. View your result on the desktop.", failed: "Analysis failed on the desktop. Start a new scan there.", expired: "Session expired. Start a new scan on your desktop.", invalid: "Invalid session or phone already paired. Start a new scan on your desktop." };
 export default function PhoneQR() {
   const { id } = useParams();
-  const token = new URLSearchParams(window.location.hash.slice(1)).get("token");
+  const [token] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get("token"));
   const [state, setState] = useState("connecting");
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
@@ -32,7 +32,7 @@ export default function PhoneQR() {
     if (!scanningAllowed || !connection.current) throw new Error("Reconnect to the desktop before sending.");
     pending.current = decoded;
     setContent(decoded); setState("detected");
-    if (!connection.current.send({ type: "scan", content: decoded })) setError("Connection interrupted. Reconnecting to send your scan…");
+    if (!connection.current.send({ type: "scan", content: decoded })) setError("Could not send your scan. Check your connection and try again.");
     return true;
   };
   return <div className="max-w-2xl mx-auto px-4 py-6 security-workspace">

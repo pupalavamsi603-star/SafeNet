@@ -1,42 +1,49 @@
-import { API } from "./api";
+import { api } from "./api";
 
-export function pairingSocket(id) {
-  const url = new URL(`${API}/qr-pair/${encodeURIComponent(id)}`, window.location.origin);
-  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-  return new WebSocket(url.href);
-}
+const terminal = ["complete", "failed", "expired", "invalid"];
 
-// Credentials are sent in the first frame, never in the WebSocket URL/logs.
+// Short HTTPS requests work through the same API/CORS path as session creation.
+// Credentials stay in POST bodies; no persistent socket or URL credential is used.
 export function connectPairing(session, role, onMessage, onFailure) {
-  let socket, timer, heartbeat, stopped = false;
-  const send = (message) => { if (socket?.readyState !== WebSocket.OPEN) return false; socket.send(JSON.stringify(message)); return true; };
-  const open = () => {
-    if (stopped) return;
-    socket = pairingSocket(session.id);
-    socket.onopen = () => {
-      send({ role, token: session.token, device: session.device });
-      if (role === "phone") send({ type: "ready" });
-      heartbeat = setInterval(() => send({ type: "ping" }), 15000);
-    };
-    socket.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        if (["complete", "failed", "expired", "invalid"].includes(message.state)) { stopped = true; clearInterval(heartbeat); }
-        onMessage(message, send);
-      } catch { onFailure("Connection failed. Try again."); }
-    };
-    socket.onclose = (event) => {
-      clearInterval(heartbeat);
-      if (stopped) return;
-      if ([1008, 4001, 4009].includes(event.code)) {
-        onMessage({ state: event.code === 4001 ? "expired" : "invalid" }, send);
-        return;
-      }
-      onFailure("Connection interrupted. Reconnecting…");
-      timer = setTimeout(open, 2000);
-    };
-    socket.onerror = () => onFailure("Connection failed. Check your network.");
+  const auth = { role, token: session.token, ...(role === "phone" ? { device: session.device } : {}) };
+  let stopped = false, running = false, timer, failures = 0, controller;
+  const queue = [];
+  const send = (message) => {
+    if (stopped) return false;
+    if (!queue.some((item) => item.type === message.type && item.content === message.content)) queue.push(message);
+    if (!running) { clearTimeout(timer); timer = setTimeout(run, 0); }
+    return true;
   };
-  open();
-  return { send, close: () => { stopped = true; clearTimeout(timer); clearInterval(heartbeat); if (role === "desktop") send({ type: "cancel" }); socket?.close(); } };
+  const run = async () => {
+    if (stopped || running) return;
+    running = true;
+    const action = queue[0] || { type: "ping" };
+    controller = new AbortController();
+    try {
+      const { data } = await api.post(`/qr-pair/${encodeURIComponent(session.id)}/exchange`, { ...auth, ...action }, { signal: controller.signal, timeout: 10000 });
+      if (stopped) return;
+      if (queue[0] === action) queue.shift();
+      failures = 0;
+      if (terminal.includes(data.state)) stopped = true;
+      Promise.resolve(onMessage(data, send)).catch(() => onFailure("Could not process the scan. Try again."));
+    } catch (error) {
+      if (stopped) return;
+      const status = error.response?.status;
+      if ([403, 404, 410, 422].includes(status)) {
+        stopped = true;
+        onMessage({ state: status === 410 || status === 404 ? "expired" : "invalid" }, send);
+      } else if (++failures >= 3) {
+        onFailure("Could not reach SafeNet. Check your connection or try again.");
+      }
+      // Keep unacknowledged actions queued; backend transitions are idempotent.
+    } finally {
+      running = false;
+      if (!stopped) timer = setTimeout(run, queue.length ? (failures ? 2000 : 0) : 1500);
+    }
+  };
+  run();
+  return { send, close: () => {
+    stopped = true; clearTimeout(timer); controller?.abort();
+    if (role === "desktop") api.post(`/qr-pair/${encodeURIComponent(session.id)}/exchange`, { ...auth, type: "cancel" }, { timeout: 10000 }).catch(() => {});
+  } };
 }
