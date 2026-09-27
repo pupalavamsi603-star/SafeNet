@@ -45,8 +45,7 @@ export default function Home() {
           </div>
           <div className="hero-visual" data-reveal aria-hidden="true">
             <picture>
-              <source media="(max-width: 767px)" srcSet="/assets/safenet-hero-shield-640.webp" type="image/webp" />
-              <img src="/assets/safenet-hero-shield-960.webp" width="960" height="640" fetchPriority="high" decoding="async" alt="" />
+              <img src="/assets/safenet-hero-shield-960.webp" srcSet="/assets/safenet-hero-shield-640.webp 640w, /assets/safenet-hero-shield-960.webp 960w" sizes="(max-width: 767px) 330px, 470px" width="960" height="640" fetchPriority="high" decoding="async" alt="" />
             </picture>
             <div className="hero-orbit-card link"><span><Link2 /></span><p><strong>Web Links</strong><small>Scan for threats</small></p></div>
             <div className="hero-orbit-card qr"><span><QrCode /></span><p><strong>QR Codes</strong><small>Detect hidden risks</small></p></div>
