@@ -1,6 +1,6 @@
 import {
   AlertTriangle, ShieldCheck, ShieldAlert, CircleHelp, ScanSearch,
-  Loader2, Check, ChevronDown, ChartNoAxesColumnIncreasing, Tag,
+  Loader2, Check, ChevronDown, ChartNoAxesColumnIncreasing, Tag, AlertCircle, FileText, Lightbulb,
 } from "lucide-react";
 
 const risks = {
@@ -103,7 +103,7 @@ function LoadingState() {
 }
 
 function EmptyState() {
-  return <div className="space-y-3 py-2"><ScanSearch className="w-7 h-7 text-primary" strokeWidth={1.5} /><h3 className="font-semibold">Understand the risk before you act</h3><p className="text-sm text-muted-foreground leading-relaxed">Your analysis will show a risk level, the reasons behind it, and practical next steps.</p><p className="text-xs text-muted-foreground">Nothing has been checked yet.</p></div>;
+  return <div className="empty-result"><div className="empty-result-heading"><span><ScanSearch aria-hidden="true" /></span><div><h3 className="font-semibold">Understand the risk before you act</h3><p className="text-sm text-muted-foreground leading-relaxed">Your analysis will show a risk level, the reasons behind it, and practical next steps.</p></div></div><div className="empty-result-grid"><div><span className="rose"><AlertCircle /></span><p><strong>Risk level</strong><small>Safe, Suspicious or Dangerous</small></p></div><div><span className="blue"><FileText /></span><p><strong>Reasons</strong><small>Why it might be a scam</small></p></div><div><span className="green"><Lightbulb /></span><p><strong>Guidance</strong><small>What you should do next</small></p></div></div></div>;
 }
 
 function Disclaimer() {
