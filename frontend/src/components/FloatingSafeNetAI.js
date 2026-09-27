@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Bot, ChevronDown, ShieldCheck, Sparkles } from "lucide-react";
 import { useLocation, useSearchParams } from "react-router-dom";
-import { ChatTab } from "./security/AnalysisTools";
+
+const ChatTab = lazy(() => import("./security/AnalysisTools").then((module) => ({ default: module.ChatTab })));
 
 export const OPEN_ASSISTANT_EVENT = "safenet:open-assistant";
 
@@ -41,7 +42,7 @@ export function FloatingSafeNetAI() {
             <div className="flex items-center gap-3 min-w-0"><span className="floating-ai-brand"><ShieldCheck className="w-5 h-5" aria-hidden="true" /></span><div className="min-w-0"><h2 className="font-semibold leading-tight">SafeNet AI</h2><p className="text-xs text-emerald-700 flex items-center gap-1.5"><span className="online-dot" />Online · Ready</p></div></div>
             <button className="floating-ai-close" onClick={close} aria-label="Minimize SafeNet AI"><ChevronDown className="w-5 h-5" /></button>
           </header>
-          <div className="floating-ai-body"><ChatTab compact resumeSession={params.get("session") || ""} /></div>
+          <div className="floating-ai-body"><Suspense fallback={<div className="tool-loading" role="status">Loading SafeNet AI…</div>}><ChatTab compact resumeSession={params.get("session") || ""} /></Suspense></div>
         </section>
       )}
       <button ref={buttonRef} type="button" className={`floating-ai-button ${open ? "is-hidden" : ""}`} onClick={show} aria-label="Open SafeNet AI assistant" aria-expanded={open} data-testid="floating-ai-button">

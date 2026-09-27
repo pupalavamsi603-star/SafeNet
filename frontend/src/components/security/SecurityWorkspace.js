@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Link2, QrCode, MessageSquareWarning, ArrowRight, Sparkles } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { DetectTab, QRTab } from "./AnalysisTools";
 import { URLTool } from "./URLTool";
+
+const QRTab = lazy(() => import("./AnalysisTools").then((module) => ({ default: module.QRTab })));
+const DetectTab = lazy(() => import("./AnalysisTools").then((module) => ({ default: module.DetectTab })));
 
 const tools = [
   { id: "url", tag: "Websites & links", name: "Scan URL", description: "Check a suspicious website or link for threats.", icon: Link2 },
@@ -41,10 +43,14 @@ export function SecurityWorkspace({ value, onValueChange }) {
       {tools.map(({ id }) => (visited.has(id) || value === id) && (
         <TabsContent key={id} value={id} forceMount hidden={value !== id} className="tool-panel mt-5">
           {id === "url" && <URLTool />}
-          {id === "qr" && <QRTab active={value === "qr"} />}
-          {id === "detect" && <DetectTab />}
+          {id === "qr" && <Suspense fallback={<ToolLoading />}><QRTab active={value === "qr"} /></Suspense>}
+          {id === "detect" && <Suspense fallback={<ToolLoading />}><DetectTab /></Suspense>}
         </TabsContent>
       ))}
     </Tabs>
   );
+}
+
+function ToolLoading() {
+  return <div className="tool-loading" role="status">Loading scanner…</div>;
 }

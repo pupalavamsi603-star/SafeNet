@@ -1,4 +1,5 @@
 import "@/App.css";
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider } from "./context/AuthContext";
@@ -7,22 +8,23 @@ import { Footer } from "./components/Footer";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { SplashGate } from "./components/SplashGate";
-import PhoneQR from "./pages/PhoneQR";
 import Home from "./pages/Home";
-import About from "./pages/About";
-import ScamTypes from "./pages/ScamTypes";
-import ScamDetail from "./pages/ScamDetail";
-import SafetyTips from "./pages/SafetyTips";
-import AIChat from "./pages/AIChat";
-import Quiz from "./pages/Quiz";
-import ReportScam from "./pages/ReportScam";
-import Contact from "./pages/Contact";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import Dashboard from "./pages/Dashboard";
-import NotFound from "./pages/NotFound";
 import { FloatingSafeNetAI } from "./components/FloatingSafeNetAI";
+
+const PhoneQR = lazy(() => import("./pages/PhoneQR"));
+const About = lazy(() => import("./pages/About"));
+const ScamTypes = lazy(() => import("./pages/ScamTypes"));
+const ScamDetail = lazy(() => import("./pages/ScamDetail"));
+const SafetyTips = lazy(() => import("./pages/SafetyTips"));
+const AIChat = lazy(() => import("./pages/AIChat"));
+const Quiz = lazy(() => import("./pages/Quiz"));
+const ReportScam = lazy(() => import("./pages/ReportScam"));
+const Contact = lazy(() => import("./pages/Contact"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 // The auth pages use their own full-height split layout and already carry a
 // copyright line, so the site footer is duplicate chrome there.
@@ -52,7 +54,7 @@ function App() {
               <a href="#main-content" className="skip-link">Skip to main content</a>
               <SiteNavbar />
               <main id="main-content" tabIndex={-1} className="flex-1">
-                <Routes>
+                <Suspense fallback={<div className="route-loading" role="status">Loading page…</div>}><Routes>
                   <Route path="/" element={<Home />} />
                   <Route path="/qr/phone/:id" element={<PhoneQR />} />
                   <Route path="/about" element={<About />} />
@@ -68,7 +70,7 @@ function App() {
                   <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                   <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
                   <Route path="*" element={<NotFound />} />
-                </Routes>
+                </Routes></Suspense>
               </main>
               <SiteFooter />
             </div>
