@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Shield, Loader2, Eye, EyeOff, ArrowRight, Check, X } from "lucide-react";
+import { Loader2, Eye, EyeOff, ArrowRight, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { api, formatApiErrorDetail } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
@@ -41,11 +41,9 @@ export default function Register() {
 
   return (
     <AuthLayout testId="register-page">
-      <div className="lg:hidden flex justify-center mb-8">
-        <Shield className="w-10 h-10 text-primary" strokeWidth={1.4} />
-      </div>
-      <h1 className="font-heading text-[1.75rem] font-bold tracking-tighter">Create your account</h1>
-      <p className="text-sm text-muted-foreground mt-2">Free forever. Start learning to stay safe online.</p>
+      <p className="auth-form-kicker">YOUR SAFETY WORKSPACE</p>
+      <h1 className="font-heading text-[1.75rem] font-bold tracking-tighter">Make safety a habit.</h1>
+      <p className="text-sm text-muted-foreground mt-2">Create a free account for your private safety plan, activity and learning progress.</p>
 
       <div className="mt-8">
         <GoogleSignInButton text="signup_with" />

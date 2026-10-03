@@ -35,9 +35,10 @@ export default function Login() {
   };
 
   return (
-    <AuthLayout testId="login-page" standalone>
-      <h1 className="font-heading text-[1.75rem] font-bold tracking-tighter">Welcome back</h1>
-      <p className="text-sm text-muted-foreground mt-2">Log in to continue to SafeNet.</p>
+    <AuthLayout testId="login-page">
+      <p className="auth-form-kicker">YOUR SAFETY WORKSPACE</p>
+      <h1 className="font-heading text-[1.75rem] font-bold tracking-tighter">Pick up where you left off.</h1>
+      <p className="text-sm text-muted-foreground mt-2">Sign in to your safety plan, recent activity and learning progress.</p>
 
       <div className="mt-8">
         <GoogleSignInButton text="signin_with" />
@@ -67,7 +68,7 @@ export default function Login() {
           </div>
         </div>
         <Button type="submit" disabled={loading} className="w-full rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground h-12 text-[0.9rem] font-medium" data-testid="login-submit-button">
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (<>Log in <ArrowRight className="w-4 h-4 ml-2" /></>)}
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (<>Open my workspace <ArrowRight className="w-4 h-4 ml-2" /></>)}
         </Button>
       </form>
 

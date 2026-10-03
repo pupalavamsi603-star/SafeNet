@@ -12,7 +12,7 @@ import bcrypt
 import jwt
 from collections import defaultdict, deque
 from datetime import datetime, timezone, timedelta
-from typing import List, Optional
+from typing import List, Optional, Literal
 from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends
 from fastapi.responses import StreamingResponse
 from starlette.middleware.cors import CORSMiddleware
@@ -258,6 +258,10 @@ class QRScanInput(BaseModel):
 
 class URLCheckInput(BaseModel):
     url: str = Field(min_length=4, max_length=2000)
+
+class SafetyPlanUpdate(BaseModel):
+    step: Literal["verify_sender", "strong_passwords", "mfa", "updates"]
+    completed: bool
 
 class GoogleAuthInput(BaseModel):
     credential: str = Field(min_length=20)
@@ -788,6 +792,30 @@ async def ai_url_check(data: URLCheckInput, _=Depends(url_check_limiter)):
 
 
 # ---------- user dashboard ----------
+
+SAFETY_PLAN_STEPS = ("verify_sender", "strong_passwords", "mfa", "updates")
+
+def safety_plan_response(saved: Optional[dict]) -> dict:
+    steps = {key: bool((saved or {}).get(key, False)) for key in SAFETY_PLAN_STEPS}
+    return {"steps": steps, "completed_count": sum(steps.values()), "total": len(steps)}
+
+@api_router.get("/user/safety-plan")
+async def get_safety_plan(user: dict = Depends(get_current_user)):
+    stored = await db.users.find_one({"id": user["id"]}, {"_id": 0, "safety_plan": 1})
+    if not stored:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return safety_plan_response(stored.get("safety_plan"))
+
+@api_router.patch("/user/safety-plan")
+async def update_safety_plan(data: SafetyPlanUpdate, user: dict = Depends(get_current_user)):
+    result = await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {f"safety_plan.{data.step}": data.completed}},
+    )
+    if not result.matched_count:
+        raise HTTPException(status_code=404, detail="Account not found")
+    stored = await db.users.find_one({"id": user["id"]}, {"_id": 0, "safety_plan": 1})
+    return safety_plan_response(stored.get("safety_plan"))
 
 @api_router.get("/user/stats")
 async def user_stats(user: dict = Depends(get_current_user)):

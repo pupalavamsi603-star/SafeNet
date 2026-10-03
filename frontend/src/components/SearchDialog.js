@@ -12,16 +12,17 @@ export const SearchDialog = ({ open, onOpenChange }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (q.trim().length < 2) { setResults(null); return; }
+    if (!open || q.trim().length < 2) { setResults(null); setLoading(false); return; }
     setLoading(true);
+    const controller = new AbortController();
     const t = setTimeout(() => {
-      api.get(`/search?q=${encodeURIComponent(q)}`)
+      api.get(`/search?q=${encodeURIComponent(q)}`, { signal: controller.signal })
         .then((r) => setResults(r.data))
-        .catch(() => setResults(null))
-        .finally(() => setLoading(false));
+        .catch(() => { if (!controller.signal.aborted) setResults(null); })
+        .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     }, 300);
-    return () => clearTimeout(t);
-  }, [q]);
+    return () => { clearTimeout(t); controller.abort(); };
+  }, [q, open]);
 
   const go = (path) => { onOpenChange(false); setQ(""); navigate(path); };
 

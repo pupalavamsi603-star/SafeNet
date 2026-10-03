@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ShieldCheck, ArrowRight, BookOpenCheck, GraduationCap, Flag, Fingerprint, ScanSearch, ListChecks, LockKeyhole, Zap, Link2, QrCode, MessageSquareWarning, Sparkles } from "lucide-react";
+import { ShieldCheck, ArrowRight, BookOpenCheck, GraduationCap, Flag, Fingerprint, LockKeyhole, Zap, Link2, QrCode, MessageSquareWarning, Sparkles } from "lucide-react";
 import { SecurityWorkspace } from "../components/security/SecurityWorkspace";
+import { DecisionDesk } from "../components/DecisionDesk";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../components/ui/accordion";
 
 const faqs = [
@@ -39,8 +40,8 @@ export default function Home() {
             <p className="intro-copy">Suspicious link, QR code or message? Analyze it with SafeNet, or ask our AI assistant what to do next.</p>
             <div className="hero-trust-row" aria-label="SafeNet benefits">
               <div><span className="hero-trust-icon blue"><ShieldCheck /></span><p><strong>Stay Safe Online</strong><small>AI powered analysis</small></p></div>
-              <div><span className="hero-trust-icon violet"><LockKeyhole /></span><p><strong>Your Privacy First</strong><small>No data is stored</small></p></div>
-              <div><span className="hero-trust-icon amber"><Zap /></span><p><strong>Fast & Accurate</strong><small>Get clear guidance</small></p></div>
+              <div><span className="hero-trust-icon violet"><LockKeyhole /></span><p><strong>Your Privacy First</strong><small>Your checks aren't public</small></p></div>
+              <div><span className="hero-trust-icon amber"><Zap /></span><p><strong>Clear & Actionable</strong><small>Get practical next steps</small></p></div>
             </div>
           </div>
           <div className="hero-visual" data-reveal aria-hidden="true">
@@ -59,13 +60,7 @@ export default function Home() {
         <SecurityWorkspace value={tool} onValueChange={setTool} />
         <p className="workspace-note"><ShieldCheck className="w-4 h-4 shrink-0" /> AI guidance to help you decide. Never submit passwords, OTPs or card details.</p>
       </section>
-      <section className="how-section" aria-label="How SafeNet helps" data-reveal>
-        <div className="home-container how-grid">
-          {[[ScanSearch, "Check before you click", "Analyze a link, QR code or message."], [ListChecks, "Understand the signals", "See risk indicators and plain-language reasons."], [ShieldCheck, "Know your next step", "Use the guidance to make a safer decision."]].map(([Icon, title, text], index) => (
-            <div className="how-item" key={title}><span className="step-number">0{index + 1}</span><div><h3><Icon className="w-4 h-4" />{title}</h3><p>{text}</p></div></div>
-          ))}
-        </div>
-      </section>
+      <DecisionDesk onChooseTool={setTool} />
       <section className="home-container resources-section" aria-labelledby="learn-title" data-reveal>
         <div className="section-heading"><div><p className="eyebrow">Stay a step ahead</p><h2 id="learn-title">A little knowledge. A stronger defense.</h2></div><Link to="/about" className="text-sm text-primary inline-flex gap-1 items-center">About SafeNet <ArrowRight className="w-4 h-4" /></Link></div>
         <div className="resource-grid">{resources.map(({ icon: Icon, title, text, to, action }) => <Link className="resource-card" to={to} key={to}><Icon className="w-6 h-6 text-primary" strokeWidth={1.5} /><h3>{title}</h3><p>{text}</p><span>{action}<ArrowRight className="w-4 h-4" /></span></Link>)}</div>

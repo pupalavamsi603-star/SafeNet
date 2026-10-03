@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, formatApiErrorDetail } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
@@ -15,11 +16,12 @@ function loadGsi() {
   gsiPromise = new Promise((resolve, reject) => {
     if (window.google?.accounts?.id) return resolve();
     const s = document.createElement("script");
+    const timeout = window.setTimeout(() => { gsiPromise = null; reject(new Error("Google Sign-In took too long to load")); }, 8000);
     s.src = GSI_SRC;
     s.async = true;
     s.defer = true;
-    s.onload = () => resolve();
-    s.onerror = () => { gsiPromise = null; reject(new Error("Failed to load Google Sign-In")); };
+    s.onload = () => { window.clearTimeout(timeout); resolve(); };
+    s.onerror = () => { window.clearTimeout(timeout); gsiPromise = null; reject(new Error("Failed to load Google Sign-In")); };
     document.head.appendChild(s);
   });
   return gsiPromise;
@@ -28,6 +30,7 @@ function loadGsi() {
 export function GoogleSignInButton({ text = "continue_with" }) {
   const btnRef = useRef(null);
   const [failed, setFailed] = useState(false);
+  const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const { setUser } = useAuth();
   const navigate = useNavigate();
@@ -65,8 +68,9 @@ export function GoogleSignInButton({ text = "continue_with" }) {
           text,
           shape: "pill",
           logo_alignment: "left",
-          width: 368,
+          width: Math.min(368, btnRef.current.clientWidth || 368),
         });
+        setReady(true);
       })
       .catch(() => setFailed(true));
     return () => { cancelled = true; };
@@ -121,7 +125,10 @@ export function GoogleSignInButton({ text = "continue_with" }) {
     );
   }
 
-  return <div ref={btnRef} className="flex justify-center [color-scheme:light]" data-testid="google-signin-button" />;
+  return <div className="relative min-h-11">
+    <div ref={btnRef} className={`flex justify-center [color-scheme:light] ${ready ? "" : "absolute inset-0 opacity-0 pointer-events-none"}`} data-testid="google-signin-button" />
+    {!ready && <div className="h-11 rounded-full border bg-background text-sm text-muted-foreground flex items-center justify-center gap-2.5"><Loader2 className="w-4 h-4 animate-spin" /> Loading Google sign-in…</div>}
+  </div>;
 }
 
 function GoogleLogo() {

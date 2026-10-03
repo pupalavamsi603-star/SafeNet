@@ -3,10 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { Bot, ScanSearch, QrCode, GraduationCap, AlertTriangle, Flag, Clock, ChevronRight, Sparkles, Loader2, FileText, Activity, Quote, Zap, ArrowRight, Award } from "lucide-react";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import { SafetyPlan } from "../components/SafetyPlan";
 
 const statIcons = { detections: ScanSearch, quizzes: GraduationCap, reports: Flag, qr_scans: QrCode };
 const statColors = { detections: "text-primary bg-accent", quizzes: "text-primary bg-accent", reports: "text-primary bg-accent", qr_scans: "text-primary bg-accent" };
-const statLabels = { detections: "Scams Detected", quizzes: "Quizzes Taken", reports: "Reports Filed", qr_scans: "QR Scans" };
+const statLabels = { detections: "Messages analyzed", quizzes: "Quiz attempts", reports: "Reports filed", qr_scans: "QR codes checked" };
 const activityMeta = { detect: { icon: AlertTriangle, color: "text-primary bg-accent" }, report: { icon: Flag, color: "text-primary bg-accent" }, quiz: { icon: GraduationCap, color: "text-primary bg-accent" }, qr: { icon: QrCode, color: "text-primary bg-accent" } };
 
 const quickActions = [
@@ -16,23 +17,13 @@ const quickActions = [
   { icon: GraduationCap, label: "Take Quiz", desc: "Test your cybersecurity knowledge", to: "/quiz" },
 ];
 
-function AnimatedCounter({ value, label, Icon, color }) {
-  const [display, setDisplay] = useState(0);
-  useEffect(() => {
-    if (value === 0) { setDisplay(0); return; }
-    const duration = 1200;
-    const steps = 30;
-    const increment = value / steps;
-    let current = 0;
-    const timer = setInterval(() => { current += increment; if (current >= value) { setDisplay(value); clearInterval(timer); } else setDisplay(Math.round(current)); }, duration / steps);
-    return () => clearInterval(timer);
-  }, [value]);
+function ActivityStat({ value, label, Icon, color }) {
   return (
     <div className="rounded-xl border bg-card p-5 shadow-sm">
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
         <Icon className="w-5 h-5" strokeWidth={1.6} />
       </div>
-      <p className="font-heading text-3xl font-bold tracking-tighter mt-4 tabular-nums">{display}</p>
+      <p className="font-heading text-3xl font-bold tracking-tighter mt-4 tabular-nums">{value ?? 0}</p>
       <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground mt-1">{label}</p>
     </div>
   );
@@ -83,9 +74,9 @@ export default function Dashboard() {
         <div className="flex flex-col sm:flex-row sm:items-center gap-5">
           <Avatar name={user.name} />
           <div className="flex-1">
-            <h1 className="font-heading text-3xl sm:text-4xl font-bold tracking-tighter">Welcome back, {user.name?.split(" ")[0] || "there"}<span className="text-primary">.</span></h1>
+            <h1 className="font-heading text-3xl sm:text-4xl font-bold tracking-tighter">Your safety workspace<span className="text-primary">.</span></h1>
             <p className="text-sm text-muted-foreground mt-1.5 flex items-center gap-3 flex-wrap">
-              <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Member since {stats?.member_since ? new Date(stats.member_since).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "today"}</span>
+              <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {user.name?.split(" ")[0] || "Your account"} · Member since {stats?.member_since ? new Date(stats.member_since).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "today"}</span>
               {stats && <span className="flex items-center gap-1.5"><Zap className="w-3.5 h-3.5 text-primary" /> <span className="text-primary font-semibold">{stats.total_activity}</span> total activities</span>}
             </p>
           </div>
@@ -94,10 +85,12 @@ export default function Dashboard() {
           </Link>
         </div>
 
+        <SafetyPlan />
+
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {Object.entries(statIcons).map(([key, Icon]) => (
-              <AnimatedCounter key={key} value={stats[key]} label={statLabels[key]} Icon={Icon} color={statColors[key]} />
+              <ActivityStat key={key} value={stats[key]} label={statLabels[key]} Icon={Icon} color={statColors[key]} />
             ))}
           </div>
         )}
@@ -171,7 +164,6 @@ export default function Dashboard() {
                         {a.subtitle && a.type === "detect" && (
                           <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${a.subtitle === "dangerous" ? "text-red-700 bg-red-500/10" : a.subtitle === "suspicious" ? "text-primary bg-accent" : "text-primary bg-accent"}`}>{a.subtitle}</span>
                         )}
-                        <ChevronRight className="w-4 h-4 text-muted-foreground/40" />
                       </div>
                     </div>
                   );

@@ -1,4 +1,5 @@
 import "@/App.css";
+import "@/experience.css";
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
@@ -29,8 +30,8 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 // The auth pages use their own full-height split layout and already carry a
 // copyright line, so the site footer is duplicate chrome there.
 const NO_FOOTER_ROUTES = ["/login", "/register"];
-// Login renders its own standalone shell (see AuthLayout `standalone`).
-const NO_NAVBAR_ROUTES = ["/login"];
+// Account pages share their own full-height shell.
+const NO_NAVBAR_ROUTES = ["/login", "/register"];
 
 function SiteFooter() {
   const { pathname } = useLocation();

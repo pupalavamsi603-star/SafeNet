@@ -28,6 +28,16 @@ export const Navbar = () => {
     window.addEventListener("keydown", escape);
     return () => window.removeEventListener("keydown", escape);
   }, []);
+  useEffect(() => {
+    const shortcut = (event) => {
+      const editing = event.target instanceof HTMLElement && (event.target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName));
+      const slash = event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey && !editing;
+      const search = event.key.toLowerCase() === "k" && (event.ctrlKey || event.metaKey);
+      if (slash || search) { event.preventDefault(); setSearchOpen(true); }
+    };
+    window.addEventListener("keydown", shortcut);
+    return () => window.removeEventListener("keydown", shortcut);
+  }, []);
 
   const linkIdle = "text-muted-foreground hover:text-primary";
   const linkActive = "bg-primary/10 text-primary font-semibold";
@@ -82,7 +92,7 @@ export const Navbar = () => {
           </nav>
 
           <div className="flex-1 flex items-center justify-end gap-1.5 min-w-0">
-            <Button variant="ghost" size="icon" className="rounded-lg" onClick={() => setSearchOpen(true)} data-testid="navbar-search-button" aria-label="Search">
+            <Button variant="ghost" size="icon" className="rounded-lg" onClick={() => setSearchOpen(true)} data-testid="navbar-search-button" aria-label="Search" aria-keyshortcuts="/ Control+K Meta+K" title="Search · press / or Ctrl+K">
               <Search className="w-4 h-4" />
             </Button>
 
