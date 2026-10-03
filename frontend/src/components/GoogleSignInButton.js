@@ -68,7 +68,7 @@ export function GoogleSignInButton({ text = "continue_with" }) {
           text,
           shape: "pill",
           logo_alignment: "left",
-          width: Math.min(368, btnRef.current.clientWidth || 368),
+          width: Math.min(368, btnRef.current.parentElement?.clientWidth || window.innerWidth - 32),
         });
         setReady(true);
       })
