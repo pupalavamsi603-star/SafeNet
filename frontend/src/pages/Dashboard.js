@@ -1,216 +1,81 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Bot, ScanSearch, QrCode, GraduationCap, AlertTriangle, Flag, Clock, ChevronRight, Sparkles, Loader2, FileText, Activity, Quote, Zap, ArrowRight, Award } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Bot, QrCode, GraduationCap, Flag, Clock, ArrowRight, Award, FileText, Activity, Sparkles, Loader2, AlertCircle, RotateCw } from "lucide-react";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { SafetyPlan } from "../components/SafetyPlan";
 
-const statIcons = { detections: ScanSearch, quizzes: GraduationCap, reports: Flag, qr_scans: QrCode };
-const statColors = { detections: "text-primary bg-accent", quizzes: "text-primary bg-accent", reports: "text-primary bg-accent", qr_scans: "text-primary bg-accent" };
-const statLabels = { detections: "Messages analyzed", quizzes: "Quiz attempts", reports: "Reports filed", qr_scans: "QR codes checked" };
-const activityMeta = { detect: { icon: AlertTriangle, color: "text-primary bg-accent" }, report: { icon: Flag, color: "text-primary bg-accent" }, quiz: { icon: GraduationCap, color: "text-primary bg-accent" }, qr: { icon: QrCode, color: "text-primary bg-accent" } };
-
-const quickActions = [
-  { icon: Bot, label: "AI Chatbot", desc: "Ask about scams & safety", to: "/ai?tab=chat" },
-  { icon: ScanSearch, label: "Scam Detector", desc: "Analyze suspicious messages", to: "/ai?tab=detect" },
-  { icon: QrCode, label: "QR Scanner", desc: "Check QR codes before scanning", to: "/ai?tab=qr" },
-  { icon: GraduationCap, label: "Take Quiz", desc: "Test your cybersecurity knowledge", to: "/quiz" },
+const metrics = [
+  { key: "detections", label: "Messages analyzed", icon: FileText, tone: "blue" },
+  { key: "qr_scans", label: "QR codes checked", icon: QrCode, tone: "green" },
+  { key: "reports", label: "Reports filed", icon: Flag, tone: "orange" },
+  { key: "quizzes", label: "Quiz attempts", icon: GraduationCap, tone: "purple" },
 ];
+const types = { detect: { icon: FileText, label: "Message", tone: "blue" }, qr: { icon: QrCode, label: "QR code", tone: "green" }, report: { icon: Flag, label: "Report", tone: "orange" }, quiz: { icon: GraduationCap, label: "Quiz", tone: "purple" } };
+const filters = [["all", "All activity"], ["detect", "Messages"], ["qr", "QR scans"], ["report", "Reports"], ["quiz", "Quizzes"]];
+const dateLabel = (value) => new Date(value).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
-function ActivityStat({ value, label, Icon, color }) {
-  return (
-    <div className="rounded-xl border bg-card p-5 shadow-sm">
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
-        <Icon className="w-5 h-5" strokeWidth={1.6} />
-      </div>
-      <p className="font-heading text-3xl font-bold tracking-tighter mt-4 tabular-nums">{value ?? 0}</p>
-      <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground mt-1">{label}</p>
-    </div>
-  );
-}
-
-function Avatar({ name }) {
-  const initials = (name || "U").split(" ").map(s => s[0]).join("").toUpperCase().slice(0, 2);
-  return <div className={`w-14 h-14 rounded-2xl bg-primary flex items-center justify-center text-white font-heading font-bold text-lg shadow-sm`}>{initials}</div>;
+function ActivityTable({ records, history = false }) {
+  if (!records) return <p className="dashboard-muted">Saved activity is unavailable. Use Retry to load your account records.</p>;
+  if (!records.length) return <div className="dashboard-empty"><Activity size={30} aria-hidden="true" /><h3>No activity to show yet</h3><p>Your saved checks, reports and quiz attempts will appear here.</p><Link to="/ai?tab=url">Run your first check <ArrowRight size={15} aria-hidden="true" /></Link></div>;
+  return <div className="activity-table-wrap"><table className="activity-table"><thead><tr><th>Activity</th><th>Result / status</th><th>Date</th></tr></thead><tbody>{records.map((record, index) => {
+    const meta = types[record.type] || { icon: Activity, label: "Activity", tone: "blue" };
+    const Icon = meta.icon;
+    const risk = ["safe", "suspicious", "dangerous", "malicious"].includes(record.subtitle) ? record.subtitle : "neutral";
+    return <tr key={record.id || index}><td><div className="activity-target"><span className={`activity-icon ${meta.tone}`}><Icon size={17} aria-hidden="true" /></span><div><strong>{record.title}</strong>{history && <small>{meta.label}</small>}</div></div></td><td><span className={`activity-status status-${risk}`}>{record.subtitle || "Recorded"}</span></td><td><time dateTime={record.timestamp}>{dateLabel(record.timestamp)}</time></td></tr>;
+  })}</tbody></table></div>;
 }
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const history = params.get("view") === "history";
   const [stats, setStats] = useState(null);
-  const [activities, setActivities] = useState([]);
+  const [activities, setActivities] = useState(null);
   const [tips, setTips] = useState([]);
-  const [chats, setChats] = useState([]);
-  const [tipIdx, setTipIdx] = useState(0);
-  const [certificate, setCertificate] = useState(null);
+  const [chats, setChats] = useState(null);
+  const [certificate, setCertificate] = useState(undefined);
   const [loading, setLoading] = useState(true);
-
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
+  const [filter, setFilter] = useState("all");
+  const [tipIdx, setTipIdx] = useState(0);
   useEffect(() => {
     if (!user) return;
-    Promise.all([
-      api.get("/user/stats").then(r => setStats(r.data)).catch(() => {}),
-      api.get("/user/activity").then(r => setActivities(r.data)).catch(() => {}),
-      api.get("/safety-tips").then(r => setTips(r.data || [])).catch(() => {}),
-      api.get("/user/chat-sessions").then(r => setChats(r.data || [])).catch(() => {}),
-      api.get("/quiz/certificate").then(r => setCertificate(r.data.certificate)).catch(() => {}),
-    ]).finally(() => setLoading(false));
-  }, [user]);
-
+    let active = true;
+    setLoading(true); setError("");
+    Promise.allSettled([api.get("/user/stats"), api.get("/user/activity"), api.get("/safety-tips"), api.get("/user/chat-sessions"), api.get("/quiz/certificate")]).then(([counts, activity, safety, conversations, award]) => {
+      if (!active) return;
+      if (counts.status === "fulfilled") setStats(counts.value.data);
+      if (activity.status === "fulfilled") setActivities(activity.value.data);
+      if (safety.status === "fulfilled") setTips(safety.value.data || []);
+      if (conversations.status === "fulfilled") setChats(conversations.value.data || []);
+      if (award.status === "fulfilled") setCertificate(award.value.data.certificate);
+      if (counts.status === "rejected" || activity.status === "rejected") setError("Some account activity could not load. Try again to see your latest records.");
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, [user, retry]);
   useEffect(() => {
     if (tips.length < 2) return;
-    const t = setInterval(() => setTipIdx(i => (i + 1) % tips.length), 8000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setTipIdx((index) => (index + 1) % tips.length), 8000);
+    return () => clearInterval(timer);
   }, [tips.length]);
-
-  if (!user || loading) return <div className="min-h-[80vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
-
+  if (!user || loading) return <div className="dashboard-loading" role="status"><Loader2 className="animate-spin" /><p>Loading your workspace…</p></div>;
   const tip = tips[tipIdx];
-
-  return (
-    <div className="min-h-[calc(100vh-4rem)] relative overflow-hidden">
-
-
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-12 space-y-10">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-          <Avatar name={user.name} />
-          <div className="flex-1">
-            <h1 className="font-heading text-3xl sm:text-4xl font-bold tracking-tighter">Your safety workspace<span className="text-primary">.</span></h1>
-            <p className="text-sm text-muted-foreground mt-1.5 flex items-center gap-3 flex-wrap">
-              <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {user.name?.split(" ")[0] || "Your account"} · Member since {stats?.member_since ? new Date(stats.member_since).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "today"}</span>
-              {stats && <span className="flex items-center gap-1.5"><Zap className="w-3.5 h-3.5 text-primary" /> <span className="text-primary font-semibold">{stats.total_activity}</span> total activities</span>}
-            </p>
-          </div>
-          <Link to="/ai" className="hidden sm:inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium transition-colors">
-            <Bot className="w-4 h-4" /> Ask SafeBot
-          </Link>
-        </div>
-
-        <SafetyPlan />
-
-        {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {Object.entries(statIcons).map(([key, Icon]) => (
-              <ActivityStat key={key} value={stats[key]} label={statLabels[key]} Icon={Icon} color={statColors[key]} />
-            ))}
-          </div>
-        )}
-
-        <div className="rounded-xl border bg-card p-6 flex flex-col sm:flex-row sm:items-center gap-5" data-testid="dashboard-certificate-card">
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${certificate ? "bg-amber-500/10" : "bg-secondary"}`}>
-            <Award className={`w-6 h-6 ${certificate ? "text-amber-800" : "text-muted-foreground"}`} strokeWidth={1.6} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="font-heading text-base font-semibold tracking-tight">
-              {certificate ? "Cyber Safety Certificate earned" : "Earn your Cyber Safety Certificate"}
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-              {certificate
-                ? `Scored ${certificate.score}/${certificate.total} on ${new Date(certificate.issued_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}. Issued once — open the quiz to download it again.`
-                : "Score 60% or higher on the Cyber Safety Quiz to earn your certificate. It's issued once."}
-            </p>
-          </div>
-          <Link
-            to="/quiz"
-            data-testid="dashboard-certificate-cta"
-            className={`shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-colors ${
-              certificate ? "border hover:border-amber-500/50" : "bg-primary hover:bg-primary/90 text-primary-foreground"
-            }`}
-          >
-            <GraduationCap className="w-4 h-4" /> {certificate ? "View certificate" : "Take the quiz"}
-          </Link>
-        </div>
-
-        <div>
-          <h2 className="font-heading text-lg font-semibold tracking-tight mb-5 flex items-center gap-2"><Zap className="w-5 h-5 text-primary" /> Quick Actions</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {quickActions.map(a => (
-              <button key={a.to} onClick={() => navigate(a.to)} className="group rounded-xl border bg-card p-5 text-left transition-colors hover:border-primary">
-                <div className="relative">
-                  <div className="w-10 h-10 rounded-xl bg-accent text-primary flex items-center justify-center">
-                    <a.icon className="w-5 h-5" strokeWidth={1.6} />
-                  </div>
-                  <p className="font-heading text-base font-semibold mt-4">{a.label}</p>
-                  <p className="text-sm text-muted-foreground mt-1">{a.desc}</p>
-                  <ArrowRight className="w-4 h-4 mt-3 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <h2 className="font-heading text-lg font-semibold tracking-tight mb-5 flex items-center gap-2"><Activity className="w-5 h-5 text-primary" /> Recent Activity</h2>
-            {activities.length === 0 ? (
-              <div className="rounded-xl border bg-card p-10 text-center">
-                <Activity className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" strokeWidth={1.2} />
-                <p className="text-sm text-muted-foreground">No activity yet. Try scanning a QR or detecting a scam!</p>
-              </div>
-            ) : (
-              <div className="rounded-xl border bg-card divide-y overflow-hidden">
-                {activities.slice(0, 8).map((a, i) => {
-                  const meta = activityMeta[a.type] || { icon: FileText, color: "text-primary bg-sky-500/10" };
-                  const Icon = meta.icon;
-                  return (
-                    <div key={a.id || i} className="flex items-center gap-4 p-4 hover:bg-secondary/50 transition-colors">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${meta.color}`}>
-                        <Icon className="w-4 h-4" strokeWidth={1.6} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{a.title}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{new Date(a.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {a.subtitle && a.type === "detect" && (
-                          <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${a.subtitle === "dangerous" ? "text-red-700 bg-red-500/10" : a.subtitle === "suspicious" ? "text-primary bg-accent" : "text-primary bg-accent"}`}>{a.subtitle}</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-6">
-            {tip && (
-              <div>
-                <h2 className="font-heading text-lg font-semibold tracking-tight mb-5 flex items-center gap-2"><Sparkles className="w-5 h-5 text-primary" /> Safety Tip</h2>
-                <div className="rounded-xl border bg-card p-5 relative overflow-hidden transition-all duration-500" key={tipIdx}>
-                  <Quote className="w-6 h-6 text-primary/30 mb-3" />
-                  <p className="text-sm font-medium leading-relaxed">{tip.title}</p>
-                  <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{tip.summary}</p>
-                  <div className="flex gap-1.5 mt-4">
-                    {tips.slice(0, 6).map((_, i) => (
-                      <button key={i} aria-label={`Show safety tip ${i + 1}`} onClick={() => setTipIdx(i)} className={`h-1.5 rounded-full transition-all duration-300 ${i === tipIdx ? "w-6 bg-sky-500" : "w-1.5 bg-border hover:bg-sky-500/50"}`} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {chats.length > 0 && (
-              <div>
-                <h2 className="font-heading text-lg font-semibold tracking-tight mb-5 flex items-center gap-2"><Bot className="w-5 h-5 text-primary" /> Recent Chats</h2>
-                <div className="rounded-xl border bg-card divide-y overflow-hidden">
-                  {chats.slice(0, 4).map((c, i) => (
-                    <Link key={c.session_id || i} to={`/ai?session=${c.session_id}`} className="flex items-center gap-3 p-3.5 hover:bg-secondary/50 transition-colors group">
-                      <div className="w-8 h-8 rounded-xl bg-sky-500/10 flex items-center justify-center shrink-0">
-                        <Bot className="w-4 h-4 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm truncate">{c.last_message?.slice(0, 80) || "Chat session"}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{c.message_count} messages · {new Date(c.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors" />
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const visible = activities?.filter((record) => filter === "all" || record.type === filter);
+  const max = Math.max(1, ...metrics.map(({ key }) => stats?.[key] || 0));
+  return <div className="dashboard-page" data-testid="dashboard-page">
+    <div className="workspace-page-heading"><div><p className="page-overline">YOUR PERSONAL WORKSPACE</p><h1>{history ? "History" : "Dashboard"}</h1><p>{history ? "Your saved checks, reports and learning activity in one place." : `Welcome back, ${user.name?.split(" ")[0] || "there"}. Keep your next online decision a safer one.`}</p></div><Link to="/ai?tab=url" className="premium-button">Run a check <ArrowRight size={16} aria-hidden="true" /></Link></div>
+    {error && <div className="dashboard-error" role="alert"><AlertCircle size={18} /><p>{error}</p><button type="button" onClick={() => setRetry((value) => value + 1)}><RotateCw size={15} /> Retry</button></div>}
+    {!history && <>
+      {stats && <div className="dashboard-stats">{metrics.map(({ key, label, icon: Icon, tone }) => <div className="dashboard-stat" key={key}><span className={`activity-icon ${tone}`}><Icon size={21} aria-hidden="true" /></span><div><strong>{stats[key] ?? 0}</strong><p>{label}</p></div></div>)}</div>}
+      <div className="dashboard-overview-grid"><section className="dashboard-card"><div className="dashboard-card-heading"><h2>Recent activity</h2><Link to="/dashboard?view=history">View all <ArrowRight size={14} aria-hidden="true" /></Link></div><ActivityTable records={activities?.slice(0, 5)} /></section><section className="dashboard-card"><div className="dashboard-card-heading"><h2>Activity overview</h2><Activity size={17} aria-hidden="true" /></div>{stats ? <div className="activity-chart">{metrics.map(({ key, label, tone }) => <div className="activity-chart-row" key={key}><div><span>{label}</span><strong>{stats[key] ?? 0}</strong></div><div className="activity-bar-track"><span className={tone} style={{ width: `${((stats[key] || 0) / max) * 100}%` }} /></div></div>)}<p>Counts from your saved account activity.</p></div> : <p className="dashboard-muted">Activity counts are unavailable.</p>}</section></div>
+      <SafetyPlan />
+      <div className="dashboard-guidance-grid">{certificate !== undefined && <section className="dashboard-card certificate-card" data-testid="dashboard-certificate-card"><span className="activity-icon purple"><Award size={23} aria-hidden="true" /></span><div><h2>{certificate ? "Cyber Safety Certificate earned" : "Build your scam-spotting instincts"}</h2><p>{certificate ? `Scored ${certificate.score}/${certificate.total} on ${dateLabel(certificate.issued_at)}. Your certificate is ready to download from the quiz.` : "Practice with the Cyber Safety Quiz. Score 60% or higher to earn your certificate."}</p><Link to="/quiz" data-testid="dashboard-certificate-cta">{certificate ? "View certificate" : "Take the quiz"}<ArrowRight size={15} aria-hidden="true" /></Link></div></section>}{tip && <section className="dashboard-card dashboard-tip"><p className="page-overline"><Sparkles size={14} aria-hidden="true" /> SAFETY TIP</p><h2>{tip.title}</h2><p>{tip.summary}</p><div className="tip-pagination">{tips.slice(0, 6).map((_, index) => <button key={index} type="button" onClick={() => setTipIdx(index)} aria-label={`Show safety tip ${index + 1}`} aria-pressed={tipIdx === index} />)}</div></section>}</div>
+    </>}
+    {history && <section className="dashboard-card history-card"><div className="dashboard-card-heading"><h2>Saved activity</h2><span>{visible ? `${visible.length} records` : "Unavailable"}</span></div><div className="history-filters" aria-label="Filter history">{filters.map(([key, label]) => <button key={key} type="button" onClick={() => setFilter(key)} aria-pressed={filter === key}>{label}</button>)}</div><ActivityTable records={visible} history /><p className="history-note">Showing up to 20 recent records available from your account.</p></section>}
+    <section className="dashboard-card"><div className="dashboard-card-heading"><h2>Conversations with SafeNet AI</h2><Link to="/ai?tab=chat">Ask AI <ArrowRight size={14} aria-hidden="true" /></Link></div>{chats === null ? <p className="dashboard-muted">Conversation history is unavailable right now.</p> : chats.length ? <div className="dashboard-chat-list">{chats.slice(0, history ? 10 : 4).map((chat) => <Link key={chat.session_id} to={`/ai?tab=chat&session=${encodeURIComponent(chat.session_id)}`}><span className="activity-icon purple"><Bot size={18} aria-hidden="true" /></span><div><strong>{chat.last_message?.slice(0, 100) || "Conversation"}</strong><small>{chat.message_count} messages · {dateLabel(chat.updated_at)}</small></div><ArrowRight size={16} aria-hidden="true" /></Link>)}</div> : <div className="dashboard-chat-empty"><Bot size={22} aria-hidden="true" /><p>Your conversations will appear here once you ask SafeNet AI a question.</p></div>}</section>
+    <p className="dashboard-account-note"><Clock size={14} aria-hidden="true" />{stats?.member_since ? `Member since ${new Date(stats.member_since).toLocaleDateString("en-US", { month: "long", year: "numeric" })}` : "Personal account"} · Your activity is private to your account.</p>
+  </div>;
 }

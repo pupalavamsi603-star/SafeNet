@@ -7,6 +7,7 @@ import { API, api, getRetryAfterSeconds, formatApiErrorDetail } from "../../lib/
 import { nativeAuthHeaders } from "../../lib/nativeAuth";
 import { PhonePairing } from "./PhonePairing";
 import { ScanResult } from "./ScanResult";
+import { ChatMessageContent } from "./ChatMessageContent";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 
@@ -228,9 +229,9 @@ export function ChatTab({ resumeSession, compact = false }) {
   };
 
   return (
-    <div className={`${compact ? "floating-chat-inner h-full" : "rounded-xl border bg-card h-[520px]"} flex flex-col min-h-0`} data-testid="ai-chat-panel">
+    <div className={`${compact ? "floating-chat-inner h-full" : "dedicated-chat rounded-xl border bg-card h-[520px]"} flex flex-col min-h-0`} data-testid="ai-chat-panel">
       <div className="flex items-center justify-between border-b px-4 py-2.5">
-        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">SafeBot</p>
+        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">SafeNet AI</p>
         <Button
           onClick={startNewChat}
           disabled={streaming || historyLoading || messages.length === 0}
@@ -244,12 +245,12 @@ export function ChatTab({ resumeSession, compact = false }) {
       </div>
       <div className={`flex-1 overflow-y-auto space-y-5 ${compact ? "p-4" : "p-6"}`} role="log" aria-live="polite" aria-atomic="false" aria-label="Conversation with SafeBot">
         {messages.length === 0 && (
-          <div className={`h-full flex flex-col items-center justify-center text-center ${compact ? "px-2 py-4" : "px-6"}`}>
+          <div className={`chat-welcome flex flex-col ${compact ? "h-full items-center justify-center text-center px-2 py-4" : "items-start justify-start text-left"}`}>
             <div className="w-16 h-16 rounded-2xl bg-sky-500/10 flex items-center justify-center mb-5">
               <Bot className="w-8 h-8 text-primary" strokeWidth={1.5} />
             </div>
-            <h3 className="font-heading text-lg font-semibold tracking-tight">Hi, I'm SafeBot</h3>
-            <p className="text-sm text-muted-foreground mt-2 max-w-sm">Ask me anything about online scams, cybersecurity, or how to stay safe. I'm here 24/7.</p>
+            <h3 className="font-heading text-lg font-semibold tracking-tight">Hello, I'm SafeNet AI.</h3>
+            <p className="text-sm text-muted-foreground mt-2 max-w-sm">Ask about online scams, suspicious links, account security or safer browsing.</p>
             <div className={`mt-7 grid grid-cols-1 ${compact ? "" : "sm:grid-cols-2"} gap-2.5 w-full max-w-lg`}>
               {SUGGESTIONS.map((s) => (
                 <button
@@ -278,7 +279,7 @@ export function ChatTab({ resumeSession, compact = false }) {
               }`}
               data-testid={m.role === "user" ? "chat-user-message" : "chat-assistant-message"}
             >
-              {m.content || (
+              {m.content ? (!compact && m.role === "assistant" ? <ChatMessageContent content={m.content} /> : m.content) : (
                 <span className="inline-flex gap-1 items-center py-1">
                   <span className="w-1.5 h-1.5 rounded-lg bg-sky-500 typing-dot" />
                   <span className="w-1.5 h-1.5 rounded-lg bg-sky-500 typing-dot" />
@@ -320,7 +321,7 @@ export function ChatTab({ resumeSession, compact = false }) {
   );
 }
 
-export function DetectTab() {
+export function DetectTab({ standalone = false }) {
   const [message, setMessage] = useState("");
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
@@ -351,8 +352,8 @@ export function DetectTab() {
 
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" data-testid="ai-detect-panel">
-      <div className="rounded-xl border bg-card p-5 sm:p-6">
+    <div className={standalone ? "scanner-stack" : "grid grid-cols-1 lg:grid-cols-2 gap-6"} data-testid="ai-detect-panel">
+      {(!standalone || !result) && <div className="text-entry-panel rounded-xl border bg-card p-5 sm:p-6">
         <h3 className="font-heading text-base font-semibold tracking-tight flex items-center gap-2">
           <ScanSearch className="w-5 h-5 text-primary" /> Paste the suspicious message
         </h3>
@@ -370,24 +371,24 @@ export function DetectTab() {
           className="mt-4 min-h-[150px]"
           data-testid="detect-message-input"
         />
-        <p id="detect-help" className="text-xs text-muted-foreground mt-2">Remove passwords, OTPs and personal details before submitting. Minimum 5 characters.</p>
+        <div className="text-input-meta"><p id="detect-help" className="text-xs text-muted-foreground mt-2">Remove passwords, OTPs and personal details. Minimum 5 characters.</p><span>{message.length.toLocaleString()} / 6,000</span></div>
         <p id="detect-error" role="alert" className="text-sm text-red-700 mt-2">{error}</p>
         <div className="mt-4 space-y-3">
           <CooldownBanner seconds={cooldown} label="Analysis limit reached." />
           <Button onClick={analyze} disabled={loading || !!cooldown} className="w-full rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground" data-testid="detect-analyze-button">
             {loading ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analyzing with AI...</>)
               : cooldown ? (<><Timer className="w-4 h-4 mr-2" /> Wait {cooldown}s</>)
-              : (<><ScanSearch className="w-4 h-4 mr-2" /> Analyze for Scams</>)}
+              : (<><ScanSearch className="w-4 h-4 mr-2" /> Scan Text</>)}
           </Button>
         </div>
-      </div>
+      </div>}
 
-      <ScanResult result={result} loading={loading} kind="detect" />
+      <ScanResult result={result} loading={loading} kind="detect" standalone={standalone} onRescan={() => { setResult(null); requestAnimationFrame(() => document.getElementById("detect-message")?.focus()); }} />
     </div>
   );
 }
 
-export function QRTab({ active = true, mobile = false, onDecoded }) {
+export function QRTab({ active = true, mobile = false, onDecoded, standalone = false }) {
   const [phoneScreen, setPhoneScreen] = useState(() => mobile || !!window.matchMedia?.("(max-width: 767px)").matches);
   useEffect(() => {
     if (!window.matchMedia) return;
@@ -510,8 +511,8 @@ export function QRTab({ active = true, mobile = false, onDecoded }) {
   };
 
   return (
-    <div className={`grid grid-cols-1 ${onDecoded ? "" : "lg:grid-cols-2"} gap-6`} data-testid="ai-qr-panel">
-      <div className="rounded-xl border bg-card p-5 sm:p-6">
+    <div className={standalone ? "scanner-stack" : `grid grid-cols-1 ${onDecoded ? "" : "lg:grid-cols-2"} gap-6`} data-testid="ai-qr-panel">
+      {(!standalone || !result) && <div className="qr-entry-panel rounded-xl border bg-card p-5 sm:p-6">
         <h3 className="font-heading text-base font-semibold tracking-tight flex items-center gap-2">
           <QrCode className="w-5 h-5 text-primary" /> Scan a QR code
         </h3>
@@ -561,9 +562,9 @@ export function QRTab({ active = true, mobile = false, onDecoded }) {
             </Button>
           ) : null}
         </div>
-      </div>
+      </div>}
 
-      {!onDecoded && <ScanResult result={result} loading={loading} kind="qr" decoded={decodedContent} />}
+      {!onDecoded && <ScanResult result={result} loading={loading} kind="qr" decoded={decodedContent} standalone={standalone} onRescan={() => { setResult(null); setDecodedContent(""); }} />}
     </div>
   );
 }

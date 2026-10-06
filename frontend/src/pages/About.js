@@ -1,57 +1,17 @@
-import { Shield, Target, Eye, HeartHandshake } from "lucide-react";
-import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { ShieldCheck, Target, Eye, HeartHandshake, ArrowRight } from "lucide-react";
 
 const values = [
-  { icon: Target, title: "Awareness First", desc: "Scams succeed on ignorance. We decode every trick — phishing, OTP fraud, UPI scams, and more — in language anyone can understand." },
-  { icon: Eye, title: "AI-Powered Vigilance", desc: "Our AI assistant and scam detector analyze suspicious messages in seconds, giving you a second pair of expert eyes, always available." },
-  { icon: HeartHandshake, title: "Free for Everyone", desc: "Cyber safety shouldn't be a privilege. Every tool, guide, and quiz on SafeNet is free — because the most vulnerable are often the least protected." },
+  { icon: Target, title: "Awareness first", desc: "Recognize the warning signs of phishing, OTP fraud, payment scams and more, in language anyone can understand." },
+  { icon: Eye, title: "AI-powered insights", desc: "Check suspicious links, messages and QR content. Review the signals and get practical guidance for your next step." },
+  { icon: HeartHandshake, title: "Free for everyone", desc: "Every tool, guide and quiz is free. Cyber safety knowledge should be accessible to everyone." },
 ];
 
 export default function About() {
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-12" data-testid="about-page">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-        <div className="lg:col-span-7">
-          <p className="text-xs uppercase tracking-[0.25em] text-primary mb-4">About SafeNet</p>
-          <h1 className="font-heading text-3xl sm:text-4xl font-semibold tracking-tight leading-[1.1]">
-            Make safer decisions online.
-          </h1>
-          <p className="mt-7 text-base text-muted-foreground leading-relaxed max-w-2xl">
-            Every day, millions lose money and peace of mind to online scams — not because they're careless,
-            but because scammers are professionals who exploit trust, urgency, and fear. SafeNet exists to level
-            the playing field.
-          </p>
-          <p className="mt-4 text-base text-muted-foreground leading-relaxed max-w-2xl">
-            We combine clear, practical education with AI-powered tools: an assistant that answers your security
-            questions, a detector that analyzes suspicious messages, an interactive quiz that trains your instincts,
-            and a reporting system that helps track threats.
-          </p>
-        </div>
-        <div className="lg:col-span-5 flex items-center justify-center">
-          <div className="rounded-xl border bg-card p-8 w-full max-w-sm">
-            <Shield className="w-10 h-10 text-primary" strokeWidth={1.5} />
-            <h2 className="mt-5 text-xl font-semibold">Protection through knowledge</h2>
-            <p className="mt-3 text-sm text-muted-foreground leading-relaxed">Check suspicious content, understand warning signs and build safer online habits with SafeNet.</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
-        {values.map((v, i) => (
-          <motion.div
-            key={v.title}
-            className="rounded-xl border bg-card p-8"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: i * 0.1 }}
-          >
-            <v.icon className="w-8 h-8 text-primary" strokeWidth={1.5} />
-            <h3 className="font-heading text-lg font-semibold mt-4 tracking-tight">{v.title}</h3>
-            <p className="text-sm text-muted-foreground mt-2.5 leading-relaxed">{v.desc}</p>
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  );
+  return <div className="about-page" data-testid="about-page">
+    <div className="workspace-page-heading"><div><p className="page-overline">OUR PURPOSE</p><h1>About SafeNet</h1><p>Empowering a safer digital world through clarity, awareness and AI.</p></div></div>
+    <div className="about-story"><div className="about-visual"><img src="/assets/safenet-hero-shield-640.webp" width="640" height="427" alt="Blue SafeNet protection shield" loading="lazy" decoding="async" /><span><ShieldCheck size={17} aria-hidden="true" /> Protection through knowledge</span></div><div className="about-copy"><h2>A clearer view of online risk.</h2><p>Scammers exploit trust, urgency and fear. SafeNet helps individuals recognize those tactics and choose a safer next step.</p><p>We combine practical education with AI-powered tools: a security assistant, link and message checks, a QR scanner, a quiz that trains your instincts and a community reporting system.</p><p>Our mission is to create a safer, smarter digital world where everyone can access useful cybersecurity guidance.</p><Link className="premium-button" to="/ai?tab=url">Explore the tools <ArrowRight size={16} aria-hidden="true" /></Link></div></div>
+    <div className="about-values">{values.map(({ icon: Icon, title, desc }) => <section key={title}><span><Icon size={23} aria-hidden="true" /></span><h3>{title}</h3><p>{desc}</p></section>)}</div>
+    <div className="about-note"><ShieldCheck size={24} aria-hidden="true" /><div><h2>Guidance that supports your judgment.</h2><p>AI analysis can miss threats. SafeNet helps you understand warning signs; it cannot guarantee that a website, message or QR code is safe.</p></div></div>
+  </div>;
 }

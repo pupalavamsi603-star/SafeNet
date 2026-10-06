@@ -11,9 +11,10 @@ import {
 
 const links = [
   { to: "/", label: "Home" },
-  { to: "/scams", label: "Scam Types" },
-  { to: "/tips", label: "Safety Tips" },
-  { to: "/report", label: "Report Scam" },
+  { to: "/#features", label: "Features" },
+  { to: "/#how-it-works", label: "How It Works" },
+  { to: "/about", label: "About" },
+  { to: "/contact", label: "Contact" },
 ];
 
 export const Navbar = () => {
@@ -21,8 +22,8 @@ export const Navbar = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const { pathname } = useLocation();
-  useEffect(() => { setOpen(false); }, [pathname]);
+  const { pathname, hash } = useLocation();
+  useEffect(() => { setOpen(false); }, [pathname, hash]);
   useEffect(() => {
     const escape = (event) => { if (event.key === "Escape") setOpen(false); };
     window.addEventListener("keydown", escape);
@@ -41,6 +42,11 @@ export const Navbar = () => {
 
   const linkIdle = "text-muted-foreground hover:text-primary";
   const linkActive = "bg-primary/10 text-primary font-semibold";
+  const activeLink = (to, isActive) => to.includes("#") ? pathname === "/" && hash === to.slice(1) : isActive && (to !== "/" || !hash);
+  const followLink = (to) => {
+    setOpen(false);
+    if (pathname === "/" && to.includes("#")) requestAnimationFrame(() => document.getElementById(to.split("#")[1])?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }));
+  };
 
   return (
     <header
@@ -50,9 +56,7 @@ export const Navbar = () => {
         // every frame of the scroll transition reflowed the page, which is what
         // made the bar visibly shift. Only paint properties animate now.
         // --safe-top is 0px on the web and the Android status-bar inset in the APK.
-        paddingTop: `calc(0.75rem + var(--safe-top, 0px))`,
-        paddingLeft: "0.75rem",
-        paddingRight: "0.75rem",
+        paddingTop: "var(--safe-top, 0px)",
       }}
       data-testid="main-navbar"
     >
@@ -80,9 +84,11 @@ export const Navbar = () => {
                 to={l.to}
                 data-testid={`nav-link-${l.to.slice(1) || "home"}`}
                 end={l.to === "/"}
+                aria-current={l.to.includes("#") ? (pathname === "/" && hash === l.to.slice(1) ? "location" : false) : (l.to === "/" && hash ? false : undefined)}
+                onClick={() => followLink(l.to)}
                 className={({ isActive }) =>
                   `px-3 py-2 text-sm rounded-lg transition-colors duration-200 ${
-                    isActive ? `${linkActive} shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]` : linkIdle
+                    activeLink(l.to, isActive) ? linkActive : linkIdle
                   }`
                 }
               >
@@ -96,6 +102,7 @@ export const Navbar = () => {
               <Search className="w-4 h-4" />
             </Button>
 
+            {!user && <Link to="/login" className="navbar-signin hidden xl:inline-flex">Sign in</Link>}
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -124,10 +131,10 @@ export const Navbar = () => {
               <Button
                 size="sm"
                 className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground hidden sm:inline-flex gap-1.5 px-5"
-                onClick={() => navigate("/login")}
+                onClick={() => navigate("/ai?tab=url")}
                 data-testid="navbar-login-button"
               >
-                Sign in <ArrowRight className="w-3.5 h-3.5" />
+                Get Started <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             )}
 
@@ -148,13 +155,13 @@ export const Navbar = () => {
 
         {open && (
           <nav aria-label="Mobile navigation" id="mobile-nav-menu" className="lg:hidden border-t border-white/10 px-4 py-3 space-y-1 rounded-b-2xl" data-testid="mobile-nav-menu">
-            {[...links, { to: "/about", label: "About" }, { to: "/contact", label: "Contact" }].map((l) => (
+            {[...links, { to: "/scams", label: "Scam Types" }, { to: "/tips", label: "Safety Tips" }, { to: "/report", label: "Report Scam" }].map((l) => (
               <NavLink
                 key={l.to}
                 to={l.to}
-                onClick={() => setOpen(false)}
+                onClick={() => followLink(l.to)}
                 className={({ isActive }) =>
-                  `block px-3 py-2.5 rounded-lg text-sm ${isActive ? "bg-sky-500/10 text-primary font-semibold" : "text-muted-foreground"}`
+                  `block px-3 py-2.5 rounded-lg text-sm ${activeLink(l.to, isActive) ? "bg-sky-500/10 text-primary font-semibold" : "text-muted-foreground"}`
                 }
               >
                 {l.label}

@@ -95,6 +95,32 @@ test("unrecognized verdicts display unable to verify without inventing a score",
   expect(container.textContent).not.toContain("/ 100");
 });
 
+test("dedicated URL result preserves the entered URL and supports returning to the scanner", async () => {
+  api.post.mockResolvedValue({ data: { risk_level: "safe", risk_score: 8, explanation: "Returned analysis.", red_flags: [], advice: ["Verify before sharing details"] } });
+  await render(<URLTool standalone initialURL="https://example.com" />);
+  expect(container.querySelector("input").value).toBe("https://example.com");
+  await click('[data-testid="url-check-button"]');
+  expect(container.querySelector("input")).toBeNull();
+  expect(container.textContent).toContain("Scanned URL");
+  expect(container.textContent).toContain("https://example.com");
+  expect(container.querySelector('[role="meter"]').getAttribute("aria-valuenow")).toBe("8");
+  expect(container.textContent).not.toContain("SSL Certificate");
+  await click(".result-toolbar > button");
+  expect(container.querySelector("input").value).toBe("https://example.com");
+  expect(container.textContent).not.toContain("Returned analysis.");
+});
+
+test("dedicated scanner does not present an empty result as a completed check", async () => {
+  await render(<DetectTab standalone />);
+  expect(container.querySelector('[data-testid="detect-verdict"]')).toBeNull();
+  expect(container.textContent).toContain("0 / 6,000");
+  await fill("textarea", "This is a test message.");
+  api.post.mockRejectedValue({ response: { data: { detail: "Provider unavailable" } } });
+  await click('[data-testid="detect-analyze-button"]');
+  expect(container.querySelector('[role="alert"]').textContent).toContain("Provider unavailable");
+  expect(container.querySelector("textarea").value).toBe("This is a test message.");
+});
+
 test("risk meter uses the real score and exact category boundaries", async () => {
   expect(riskCategory(30).label).toBe("Safe");
   expect(riskCategory(31).label).toBe("Minimal risk");

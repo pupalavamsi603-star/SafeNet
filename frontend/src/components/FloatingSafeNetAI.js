@@ -13,7 +13,7 @@ export function FloatingSafeNetAI() {
   const [mounted, setMounted] = useState(false);
   const panelRef = useRef(null);
   const buttonRef = useRef(null);
-  const hidden = pathname.startsWith("/qr/phone/") || ["/login", "/register"].includes(pathname);
+  const hidden = pathname.startsWith("/qr/phone/") || ["/login", "/register"].includes(pathname) || (pathname === "/ai" && (params.get("tab") === "chat" || (!params.get("tab") && params.has("session"))));
   const show = () => { setMounted(true); setOpen(true); };
   const close = () => { setOpen(false); requestAnimationFrame(() => buttonRef.current?.focus()); };
 
@@ -22,9 +22,6 @@ export function FloatingSafeNetAI() {
     window.addEventListener(OPEN_ASSISTANT_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_ASSISTANT_EVENT, onOpen);
   }, []);
-  useEffect(() => {
-    if (pathname === "/ai" && (!params.get("tab") || params.get("tab") === "chat")) show();
-  }, [pathname, params]);
   useEffect(() => {
     if (!open) return;
     panelRef.current?.focus();

@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { ShieldCheck, ArrowRight, BookOpenCheck, GraduationCap, Flag, Fingerprint, LockKeyhole, Zap, Link2, QrCode, MessageSquareWarning, Sparkles } from "lucide-react";
-import { SecurityWorkspace } from "../components/security/SecurityWorkspace";
+import { useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ShieldCheck, ArrowRight, BookOpenCheck, GraduationCap, Flag, Fingerprint, LockKeyhole, Zap, Link2, QrCode, MessageSquareWarning, Sparkles, ScanSearch, ListChecks } from "lucide-react";
+import { FeatureCards } from "../components/FeatureCards";
 import { DecisionDesk } from "../components/DecisionDesk";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../components/ui/accordion";
 
@@ -21,7 +21,7 @@ const resources = [
 ];
 
 export default function Home() {
-  const [tool, setTool] = useState("url");
+  const navigate = useNavigate();
   useEffect(() => {
     const items = document.querySelectorAll(".safenet-home [data-reveal]");
     const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
@@ -36,13 +36,9 @@ export default function Home() {
         <div className="home-container hero-grid">
           <div className="hero-copy" data-reveal>
             <p className="eyebrow"><ShieldCheck className="w-4 h-4" /> AI-Powered Cybersecurity Platform</p>
-            <h1 id="home-title">Check for scams <span>before you click.</span></h1>
-            <p className="intro-copy">Suspicious link, QR code or message? Analyze it with SafeNet, or ask our AI assistant what to do next.</p>
-            <div className="hero-trust-row" aria-label="SafeNet benefits">
-              <div><span className="hero-trust-icon blue"><ShieldCheck /></span><p><strong>Stay Safe Online</strong><small>AI powered analysis</small></p></div>
-              <div><span className="hero-trust-icon violet"><LockKeyhole /></span><p><strong>Your Privacy First</strong><small>Your checks aren't public</small></p></div>
-              <div><span className="hero-trust-icon amber"><Zap /></span><p><strong>Clear & Actionable</strong><small>Get practical next steps</small></p></div>
-            </div>
+            <h1 id="home-title">Stay safe in a <span>smarter digital world.</span></h1>
+            <p className="intro-copy">Scan links, QR codes and messages. Get clear AI-powered insights to recognize scams and make safer decisions online.</p>
+            <div className="hero-actions"><Link to="/ai?tab=url" className="premium-button">Check something suspicious <ArrowRight size={17} aria-hidden="true" /></Link><a href="#how-it-works" className="hero-secondary">How it works <ArrowRight size={15} aria-hidden="true" /></a></div>
           </div>
           <div className="hero-visual" data-reveal aria-hidden="true">
             <picture>
@@ -55,12 +51,14 @@ export default function Home() {
           </div>
         </div>
       </section>
-      <section className="home-container security-section" aria-labelledby="tools-title" data-reveal>
-        <div className="section-heading"><h2 id="tools-title">What would you like to check?</h2><span className="tools-tagline hidden sm:flex"><i />Four powerful tools. One safer internet.</span></div>
-        <SecurityWorkspace value={tool} onValueChange={setTool} />
+      <section id="features" className="home-container security-section" aria-labelledby="tools-title" data-reveal>
+        <div className="section-heading"><h2 id="tools-title">A safer next step, whatever comes your way.</h2><span className="tools-tagline hidden sm:flex">Four tools. One place to check.</span></div>
+        <FeatureCards />
+        <div className="home-proof-strip" aria-label="SafeNet benefits">{[[ShieldCheck, "AI-powered detection", "Spot suspicious patterns"], [Zap, "Practical next steps", "Understand what to do"], [LockKeyhole, "Privacy comes first", "Your checks aren't public"], [Fingerprint, "Safety for everyone", "Tools and learning, free to use"]].map(([Icon, title, detail]) => <div key={title}><Icon size={25} aria-hidden="true" /><p><strong>{title}</strong><small>{detail}</small></p></div>)}</div>
         <p className="workspace-note"><ShieldCheck className="w-4 h-4 shrink-0" /> AI guidance to help you decide. Never submit passwords, OTPs or card details.</p>
       </section>
-      <DecisionDesk onChooseTool={setTool} />
+      <section id="how-it-works" className="how-section"><div className="home-container how-grid">{[[ScanSearch, "Check before you click", "Paste a link or message, or upload a QR code."], [ListChecks, "Understand the signals", "Review the risk indicators and explanation."], [ShieldCheck, "Choose your next step", "Use practical guidance to decide what to do."]].map(([Icon, title, detail], index) => <div className="how-item" key={title}><span className="step-number">0{index + 1}</span><div><h3><Icon size={17} aria-hidden="true" />{title}</h3><p>{detail}</p></div></div>)}</div></section>
+      <DecisionDesk onChooseTool={(tool) => navigate(`/ai?tab=${tool}`)} />
       <section className="home-container resources-section" aria-labelledby="learn-title" data-reveal>
         <div className="section-heading"><div><p className="eyebrow">Stay a step ahead</p><h2 id="learn-title">A little knowledge. A stronger defense.</h2></div><Link to="/about" className="text-sm text-primary inline-flex gap-1 items-center">About SafeNet <ArrowRight className="w-4 h-4" /></Link></div>
         <div className="resource-grid">{resources.map(({ icon: Icon, title, text, to, action }) => <Link className="resource-card" to={to} key={to}><Icon className="w-6 h-6 text-primary" strokeWidth={1.5} /><h3>{title}</h3><p>{text}</p><span>{action}<ArrowRight className="w-4 h-4" /></span></Link>)}</div>

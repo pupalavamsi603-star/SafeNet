@@ -1,6 +1,6 @@
 import {
   AlertTriangle, ShieldCheck, ShieldAlert, CircleHelp, ScanSearch,
-  Loader2, Check, ChevronDown, ChartNoAxesColumnIncreasing, Tag, AlertCircle, FileText, Lightbulb,
+  Loader2, Check, ChevronDown, ChartNoAxesColumnIncreasing, Tag, AlertCircle, FileText, Lightbulb, ArrowLeft, RotateCw, Flag, Link2,
 } from "lucide-react";
 
 const risks = {
@@ -19,7 +19,7 @@ export function riskCategory(score) {
 }
 
 function summaryOf(text) {
-  if (!text) return "SafeNet completed the analysis. Review the verified signals and next steps below.";
+  if (!text) return "SafeNet completed the analysis. Review the returned indicators and next steps below.";
   const match = String(text).trim().match(/^.*?[.!?](?:\s|$)/);
   return match?.[0]?.trim() || String(text).trim();
 }
@@ -27,14 +27,14 @@ function summaryOf(text) {
 function StatusCard({ result, score, kind }) {
   const cfg = risks[result?.risk_level] || risks.unknown;
   return (
-    <div className={`result-verdict border ${cfg.style}`} data-testid={`${kind}-verdict`}>
+    <div className={`result-verdict verdict-${result?.risk_level || "unknown"} border ${cfg.style}`} data-testid={`${kind}-verdict`}>
       <span className="result-verdict-icon"><cfg.icon className="w-7 h-7" aria-hidden="true" /></span>
       <div className="min-w-0 flex-1">
         <p className="result-kicker opacity-80">SafeNet assessment</p>
         <h3 className="text-xl font-semibold mt-0.5">{cfg.label}</h3>
         <p className="text-sm mt-1 opacity-90">{summaryOf(result.explanation)}</p>
       </div>
-      {score !== null && <p className="result-verdict-score tabular-nums" data-testid={`${kind}-risk-score`}>{score}<span> / 100</span></p>}
+      {score !== null && <div className="result-score-ring" aria-label={`AI risk score: ${score} out of 100`}><svg viewBox="0 0 100 100" aria-hidden="true"><circle className="score-ring-track" cx="50" cy="50" r="43" /><circle className="score-ring-value" cx="50" cy="50" r="43" strokeDasharray={`${score * 2.702} 270.2`} /></svg><p className="result-verdict-score tabular-nums" data-testid={`${kind}-risk-score`}>{score}<span> / 100</span><small>Risk score</small></p></div>}
     </div>
   );
 }
@@ -114,9 +114,20 @@ function DecodedContent({ value }) {
   return value ? <div className="decoded-content"><p className="text-xs font-semibold mb-1">Decoded QR content</p><p className="text-sm font-mono break-all" data-testid="qr-decoded-content">{value}</p><p className="text-xs text-muted-foreground mt-2">Decoded locally. Links are never opened automatically.</p></div> : null;
 }
 
-export function ScanResult({ result, loading, kind = "url", decoded, inputPanel }) {
+export function ScanResult({ result, loading, kind = "url", decoded, inputPanel, standalone = false, target, onRescan }) {
   const score = Number.isFinite(result?.risk_score) ? Math.max(0, Math.min(100, result.risk_score)) : null;
   const decodedValue = decoded || result?.decoded;
+
+  if (standalone) return <div className={`standalone-analysis ${result ? "has-result" : ""}`} data-testid={`${kind}-result-panel`} aria-live="polite" aria-busy={loading}>
+    {!result && inputPanel}
+    {loading ? <div className="scan-result result-state-card"><LoadingState /></div> : result ? <div className="result-page-card">
+      <div className="result-toolbar">{onRescan && <button type="button" onClick={onRescan}><ArrowLeft size={15} aria-hidden="true" /> Back to scanner</button>}<div>{onRescan && <button type="button" onClick={onRescan}><RotateCw size={14} aria-hidden="true" /> Rescan</button>}<a href="/report"><Flag size={14} aria-hidden="true" /> Report</a></div></div>
+      <StatusCard result={result} score={score} kind={kind} />
+      {target && <div className="result-target"><Link2 size={17} aria-hidden="true" /><span>{kind === "url" ? "Scanned URL" : "Analyzed content"}</span><p>{target}</p></div>}
+      <div className="result-evidence-grid"><div><SecuritySignals result={result} kind={kind} /><RiskMeter score={score} kind={kind} /></div><div><Recommendations advice={result.advice} kind={kind} /><Details result={result} /></div></div>
+      <DecodedContent value={decodedValue} /><Disclaimer />
+    </div> : null}
+  </div>;
 
   if (inputPanel) {
     return (

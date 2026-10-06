@@ -1,29 +1,22 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link2, Loader2 } from "lucide-react";
 import { api, formatApiErrorDetail, getRetryAfterSeconds } from "../../lib/api";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { ScanResult } from "./ScanResult";
 import { useCooldown, CooldownBanner } from "./AnalysisTools";
+import { validateURL } from "../../lib/urlValidation";
 
-export function validateURL(value) {
-  const input = value.trim();
-  if (!input) return "Enter a website or link to check.";
-  if (input.length > 2000 || /\s/.test(input)) return "Enter a valid URL without spaces (up to 2,000 characters).";
-  try {
-    const parsed = new URL(input.includes(":") ? input : `https://${input}`);
-    if (!["http:", "https:"].includes(parsed.protocol) || !parsed.hostname.includes(".")) throw new Error();
-    return "";
-  } catch { return "Enter a valid website, such as example.com or https://example.com."; }
-}
+export { validateURL } from "../../lib/urlValidation";
 
 // The original homepage URL checker, now presented alongside the other tools.
-export function URLTool() {
-  const [url, setUrl] = useState("");
+export function URLTool({ standalone = false, initialURL = "" }) {
+  const [url, setUrl] = useState(initialURL);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [cooldown, startCooldown] = useCooldown();
+  useEffect(() => { setUrl(initialURL); setResult(null); setError(""); }, [initialURL]);
   const check = async (event) => {
     event.preventDefault();
     if (loading || cooldown) return;
@@ -56,6 +49,6 @@ export function URLTool() {
       </form>
   );
   return (
-    <ScanResult result={result} loading={loading} inputPanel={inputPanel} />
+    <ScanResult result={result} loading={loading} inputPanel={inputPanel} standalone={standalone} target={url.trim()} onRescan={() => { setResult(null); requestAnimationFrame(() => document.getElementById("url-input")?.focus()); }} />
   );
 }

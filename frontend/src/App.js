@@ -1,5 +1,6 @@
 import "@/App.css";
 import "@/experience.css";
+import "@/redesign.css";
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
@@ -11,6 +12,7 @@ import { ScrollToTop } from "./components/ScrollToTop";
 import { SplashGate } from "./components/SplashGate";
 import Home from "./pages/Home";
 import { FloatingSafeNetAI } from "./components/FloatingSafeNetAI";
+import { WorkspaceLayout } from "./components/WorkspaceLayout";
 
 const PhoneQR = lazy(() => import("./pages/PhoneQR"));
 const About = lazy(() => import("./pages/About"));
@@ -55,7 +57,7 @@ function App() {
               <a href="#main-content" className="skip-link">Skip to main content</a>
               <SiteNavbar />
               <main id="main-content" tabIndex={-1} className="flex-1">
-                <Suspense fallback={<div className="route-loading" role="status">Loading page…</div>}><Routes>
+                <WorkspaceLayout><Suspense fallback={<div className="route-loading" role="status">Loading page…</div>}><Routes>
                   <Route path="/" element={<Home />} />
                   <Route path="/qr/phone/:id" element={<PhoneQR />} />
                   <Route path="/about" element={<About />} />
@@ -71,7 +73,7 @@ function App() {
                   <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                   <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
                   <Route path="*" element={<NotFound />} />
-                </Routes></Suspense>
+                </Routes></Suspense></WorkspaceLayout>
               </main>
               <SiteFooter />
             </div>

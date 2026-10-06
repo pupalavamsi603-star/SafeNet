@@ -5,6 +5,7 @@ import { URLTool } from "./URLTool";
 
 const QRTab = lazy(() => import("./AnalysisTools").then((module) => ({ default: module.QRTab })));
 const DetectTab = lazy(() => import("./AnalysisTools").then((module) => ({ default: module.DetectTab })));
+const ChatTab = lazy(() => import("./AnalysisTools").then((module) => ({ default: module.ChatTab })));
 
 const tools = [
   { id: "url", tag: "Websites & links", name: "Scan URL", description: "Check a suspicious website or link for threats.", icon: Link2 },
@@ -13,13 +14,19 @@ const tools = [
 ];
 const assistant = { id: "chat", tag: "AI assistant", name: "Ask SafeNet AI", description: "Get instant guidance on suspicious content.", icon: Sparkles };
 
-export function SecurityWorkspace({ value, onValueChange }) {
+export function SecurityWorkspace({ value, onValueChange, presentation, initialURL, resumeSession }) {
   const AssistantIcon = assistant.icon;
   const [visited, setVisited] = useState(() => new Set([value]));
   const select = (next) => {
     setVisited((old) => new Set([...old, next]));
     onValueChange(next);
   };
+  if (presentation === "page") return <div className="security-workspace dedicated-tool"><Suspense fallback={<ToolLoading />}>
+    {value === "url" && <URLTool standalone initialURL={initialURL} />}
+    {value === "qr" && <QRTab standalone active />}
+    {value === "detect" && <DetectTab standalone />}
+    {value === "chat" && <ChatTab resumeSession={resumeSession} />}
+  </Suspense></div>;
   return (
     <Tabs value={value} onValueChange={select} className="security-workspace">
       <TabsList aria-label="Security tools" className="tool-grid">
