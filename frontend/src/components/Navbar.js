@@ -1,18 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { Shield, Menu, X, Search, LogOut, LayoutDashboard, UserRound, ArrowRight } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { SearchDialog } from "./SearchDialog";
 import { Button } from "./ui/button";
+import { authLink } from "../lib/journey";
+import { readDraft, selectResult } from "../lib/scanDraft";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
 const links = [
-  { to: "/", label: "Home" },
-  { to: "/#features", label: "Features" },
-  { to: "/#how-it-works", label: "How It Works" },
+  { to: "/#features", label: "Tools" },
+  { to: "/#how-it-works", label: "How it works" },
+  { to: "/scams", label: "Learn" },
   { to: "/about", label: "About" },
   { to: "/contact", label: "Contact" },
 ];
@@ -20,15 +22,21 @@ const links = [
 export const Navbar = () => {
   const [open, setOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const menuButton = useRef(null);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const { pathname, hash } = useLocation();
+  const { pathname, hash, search } = useLocation();
+  const application = ["/ai", "/dashboard", "/quiz", "/admin"].includes(pathname);
+  const visibleLinks = application ? [{ to: "/scams", label: "Learn" }, { to: "/contact", label: "Help" }] : links;
+  const signIn = application ? authLink("login", pathname + search) : "/login";
+  const signUp = application ? authLink("register", pathname + search) : "/register";
+  const preserveCheck = () => { const kind = new URLSearchParams(search).get("tab") || "url"; if (pathname === "/ai" && readDraft(kind)?.input) selectResult(kind); };
   useEffect(() => { setOpen(false); }, [pathname, hash]);
   useEffect(() => {
-    const escape = (event) => { if (event.key === "Escape") setOpen(false); };
+    const escape = (event) => { if (event.key === "Escape" && open) { setOpen(false); requestAnimationFrame(() => menuButton.current?.focus()); } };
     window.addEventListener("keydown", escape);
     return () => window.removeEventListener("keydown", escape);
-  }, []);
+  }, [open]);
   useEffect(() => {
     const shortcut = (event) => {
       const editing = event.target instanceof HTMLElement && (event.target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName));
@@ -50,7 +58,7 @@ export const Navbar = () => {
 
   return (
     <header
-      className="app-header sticky top-0 z-50"
+      className={`app-header sticky top-0 z-50${pathname === "/" ? " app-header--home" : ""}`}
       style={{
         // Constant geometry. Transitioning padding here and max-width below meant
         // every frame of the scroll transition reflowed the page, which is what
@@ -78,7 +86,7 @@ export const Navbar = () => {
 
           {/* Equal-width rails keep the navigation centered. */}
           <nav aria-label="Main navigation" className="hidden lg:flex items-center gap-0.5">
-            {links.map((l) => (
+            {visibleLinks.map((l) => (
               <NavLink
                 key={l.to}
                 to={l.to}
@@ -102,7 +110,7 @@ export const Navbar = () => {
               <Search className="w-4 h-4" />
             </Button>
 
-            {!user && <Link to="/login" className="navbar-signin hidden xl:inline-flex">Sign in</Link>}
+            {!user && <Link to={signIn} onClick={preserveCheck} className="navbar-signin hidden sm:inline-flex">Sign in</Link>}
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -131,10 +139,10 @@ export const Navbar = () => {
               <Button
                 size="sm"
                 className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground hidden sm:inline-flex gap-1.5 px-5"
-                onClick={() => navigate("/ai?tab=url")}
+                onClick={() => { preserveCheck(); navigate(signUp); }}
                 data-testid="navbar-login-button"
               >
-                Get Started <ArrowRight className="w-3.5 h-3.5" />
+                Create account <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             )}
 
@@ -144,6 +152,7 @@ export const Navbar = () => {
               className="lg:hidden rounded-lg"
               onClick={() => setOpen(!open)}
               data-testid="mobile-menu-button"
+              ref={menuButton}
               aria-label={open ? "Close menu" : "Open menu"}
               aria-expanded={open}
               aria-controls="mobile-nav-menu"
@@ -155,7 +164,7 @@ export const Navbar = () => {
 
         {open && (
           <nav aria-label="Mobile navigation" id="mobile-nav-menu" className="lg:hidden border-t border-white/10 px-4 py-3 space-y-1 rounded-b-2xl" data-testid="mobile-nav-menu">
-            {[...links, { to: "/scams", label: "Scam Types" }, { to: "/tips", label: "Safety Tips" }, { to: "/report", label: "Report Scam" }].map((l) => (
+            {[...visibleLinks, { to: "/tips", label: "Safety Tips" }, { to: "/report", label: "Report a concern" }].map((l) => (
               <NavLink
                 key={l.to}
                 to={l.to}
@@ -168,9 +177,7 @@ export const Navbar = () => {
               </NavLink>
             ))}
             {!user && (
-              <NavLink to="/login" onClick={() => setOpen(false)} className="block px-3 py-2.5 rounded-lg text-sm text-primary font-semibold">
-                Login / Register
-              </NavLink>
+              <><NavLink to={signIn} onClick={() => { preserveCheck(); setOpen(false); }} className="block px-3 py-2.5 rounded-lg text-sm text-primary font-semibold">Sign in</NavLink><NavLink to={signUp} onClick={() => { preserveCheck(); setOpen(false); }} className="block px-3 py-2.5 rounded-lg text-sm text-primary font-semibold">Create account</NavLink></>
             )}
           </nav>
         )}

@@ -2,6 +2,9 @@ import {
   AlertTriangle, ShieldCheck, ShieldAlert, CircleHelp, ScanSearch,
   Loader2, Check, ChevronDown, ChartNoAxesColumnIncreasing, Tag, AlertCircle, FileText, Lightbulb, ArrowLeft, RotateCw, Flag, Link2,
 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import { authLink } from "../../lib/journey";
+import { readDraft, selectResult, writeDraft } from "../../lib/scanDraft";
 
 const risks = {
   safe: { icon: ShieldCheck, label: "Looks safe", style: "text-emerald-800 bg-emerald-50 border-emerald-200" },
@@ -114,18 +117,32 @@ function DecodedContent({ value }) {
   return value ? <div className="decoded-content"><p className="text-xs font-semibold mb-1">Decoded QR content</p><p className="text-sm font-mono break-all" data-testid="qr-decoded-content">{value}</p><p className="text-xs text-muted-foreground mt-2">Decoded locally. Links are never opened automatically.</p></div> : null;
 }
 
-export function ScanResult({ result, loading, kind = "url", decoded, inputPanel, standalone = false, target, onRescan }) {
+export function ScanResult({ result, loading, kind = "url", decoded, inputPanel, standalone = false, target, onRescan, savedFor }) {
+  const { user } = useAuth();
   const score = Number.isFinite(result?.risk_score) ? Math.max(0, Math.min(100, result.risk_score)) : null;
   const decodedValue = decoded || result?.decoded;
+  const returnTo = `/ai?tab=${kind}`;
+  const reportContext = () => {
+    const current = readDraft("report");
+    const source = `${kind}:${(target || decodedValue || "").slice(0, 6000)}`;
+    // A new result supplies only editable evidence, never an accusation/category.
+    const form = current?.source === source ? current.form : { ...(kind === "url" || /^https?:\/\//i.test(decodedValue || "") ? { scammer_url: (target || decodedValue || "").slice(0, 2000) } : {}), ...(kind === "detect" ? { description: (target || "").slice(0, 5000) } : {}) };
+    writeDraft("report", { form, returnTo, source });
+  };
 
   if (standalone) return <div className={`standalone-analysis ${result ? "has-result" : ""}`} data-testid={`${kind}-result-panel`} aria-live="polite" aria-busy={loading}>
     {!result && inputPanel}
     {loading ? <div className="scan-result result-state-card"><LoadingState /></div> : result ? <div className="result-page-card">
-      <div className="result-toolbar">{onRescan && <button type="button" onClick={onRescan}><ArrowLeft size={15} aria-hidden="true" /> Back to scanner</button>}<div>{onRescan && <button type="button" onClick={onRescan}><RotateCw size={14} aria-hidden="true" /> Rescan</button>}<a href="/report"><Flag size={14} aria-hidden="true" /> Report</a></div></div>
+      <div className="result-toolbar">{onRescan && <button type="button" onClick={onRescan}><ArrowLeft size={15} aria-hidden="true" /> Back to scanner</button>}<div><a href="/report" onClick={reportContext}><Flag size={14} aria-hidden="true" /> Report a concern</a></div></div>
       <StatusCard result={result} score={score} kind={kind} />
-      {target && <div className="result-target"><Link2 size={17} aria-hidden="true" /><span>{kind === "url" ? "Scanned URL" : "Analyzed content"}</span><p>{target}</p></div>}
-      <div className="result-evidence-grid"><div><SecuritySignals result={result} kind={kind} /><RiskMeter score={score} kind={kind} /></div><div><Recommendations advice={result.advice} kind={kind} /><Details result={result} /></div></div>
-      <DecodedContent value={decodedValue} /><Disclaimer />
+      {kind === "qr" && <DecodedContent value={decodedValue} />}
+      {target && <div className="result-target"><Link2 size={17} aria-hidden="true" /><span>{kind === "url" ? "Scanned URL" : "Analyzed content"}</span><p>{kind === "detect" && target.length > 400 ? `${target.slice(0, 400)}…` : target}</p></div>}
+      {kind === "detect" && target?.length > 400 && <details className="result-details"><summary>View the full message</summary><p className="text-sm whitespace-pre-wrap break-words">{target}</p></details>}
+      <div className="result-evidence-grid"><div><SecuritySignals result={result} kind={kind} /></div><div><Recommendations advice={result.advice} kind={kind} /><Details result={result} /></div></div>
+      {["dangerous", "malicious"].includes(result.risk_level) && <aside className="result-protect"><ShieldAlert size={22} aria-hidden="true" /><div><strong>Pause before taking action.</strong><p>Do not share passwords or codes. If you already sent money or shared details, contact your bank and review the emergency steps.</p><a href="/report#emergency-help" onClick={reportContext}>Get protective steps and reporting help <ArrowLeft size={14} aria-hidden="true" /></a></div></aside>}
+      <div className="result-save-state" data-testid="result-save-state">{kind === "url" ? <p>URL assessments are not stored in account history. This result can be restored in this tab for 15 minutes.</p> : savedFor === "unconfirmed" ? <p>Account saving could not be confirmed for this check. Your assessment is still valid. If you are signed in, review your activity before running another check.</p> : savedFor && savedFor === user?.id ? <p><Check size={16} aria-hidden="true" /> Saved automatically when analyzed while signed in. <a href="/dashboard?view=history">View activity</a></p> : <><p>This check is not saved to an account. Signing in does not save or repeat this assessment. Future signed-in message and QR checks save automatically.</p>{!user && <a href={authLink("login", returnTo)} onClick={() => selectResult(kind)}>Sign in for future history</a>}</>}</div>
+      {onRescan && <button type="button" className="premium-button result-next-check" onClick={onRescan}><RotateCw size={15} aria-hidden="true" />Check another {kind === "url" ? "link" : kind === "qr" ? "QR code" : "message"}</button>}
+      {kind !== "qr" && <DecodedContent value={decodedValue} />}<Disclaimer />
     </div> : null}
   </div>;
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { authIntent } from "../lib/journey";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, formatApiErrorDetail } from "../lib/api";
@@ -34,6 +35,8 @@ export function GoogleSignInButton({ text = "continue_with" }) {
   const [busy, setBusy] = useState(false);
   const { setUser } = useAuth();
   const navigate = useNavigate();
+  const { search } = useLocation();
+  const { next } = authIntent(search);
   const native = canUseNativeGoogle();
 
   // Shared by both flows: exchange a Google ID token for a SafeNet session.
@@ -41,7 +44,7 @@ export function GoogleSignInButton({ text = "continue_with" }) {
     const { data } = await api.post("/auth/google", { credential });
     setUser(data);
     toast.success(`Welcome, ${data.name}!`);
-    navigate(data.role === "admin" ? "/admin" : "/dashboard");
+    navigate(next === "/dashboard" && data.role === "admin" ? "/admin" : next, { replace: true });
   };
 
   useEffect(() => {
@@ -75,7 +78,7 @@ export function GoogleSignInButton({ text = "continue_with" }) {
       .catch(() => setFailed(true));
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate, setUser, text, native]);
+  }, [navigate, setUser, text, native, next]);
 
   // Android: our own button driving the platform account picker.
   if (native) {

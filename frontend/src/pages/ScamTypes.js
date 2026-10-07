@@ -14,6 +14,8 @@ const severityStyle = {
 
 export default function ScamTypes() {
   const [scams, setScams] = useState(null);
+  const [query, setQuery] = useState("");
+  const [severity, setSeverity] = useState("all");
   const [error, setError] = useState(false);
 
   const load = useCallback(() => {
@@ -24,15 +26,16 @@ export default function ScamTypes() {
 
   useEffect(() => { load(); }, [load]);
 
+  const visible = scams?.filter((scam) => `${scam.title} ${scam.description}`.toLowerCase().includes(query.trim().toLowerCase()) && (severity === "all" || scam.severity === severity));
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-12" data-testid="scam-types-page">
       <p className="text-xs uppercase tracking-[0.25em] text-primary mb-4">Recognize the warning signs</p>
-      <h1 className="font-heading text-3xl sm:text-4xl font-semibold tracking-tight">Online Scam Types</h1>
+      <h1 className="font-heading text-3xl sm:text-4xl font-semibold tracking-tight">Recognize the warning signs</h1>
       <p className="mt-5 text-base text-muted-foreground max-w-2xl leading-relaxed">
-        Every scam follows a script. Learn the scripts, and you'll see the con coming from a mile away.
-        Click any scam to see how it works, warning signs, and real cases.
+        Understand common scam patterns, warning signs and protective steps. Open a guide for an example scenario and a relevant check.
       </p>
 
+      <div className="guide-controls"><label><span className="sr-only">Search scam guides</span><input placeholder="Search scam guides" value={query} onChange={(e) => setQuery(e.target.value)} /></label><label><span className="sr-only">Filter guide severity</span><select value={severity} onChange={(e) => setSeverity(e.target.value)}><option value="all">All guide severities</option>{[...new Set((scams || []).map((item) => item.severity))].map((value) => <option key={value} value={value}>{value}</option>)}</select></label></div>
       {error ? (
         <ErrorState message="We couldn't load the scam library. Check your connection and try again." onRetry={load} testId="scam-types-error" />
       ) : !scams ? (
@@ -41,7 +44,7 @@ export default function ScamTypes() {
         <EmptyState icon={ShieldAlert} title="No scam types published yet" message="Check back soon — new scam breakdowns are added regularly." testId="scam-types-empty" />
       ) : (
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {scams.map((s, i) => {
+          {visible.map((s, i) => {
             const Icon = getIcon(s.icon);
             return (
               <motion.div
@@ -75,6 +78,8 @@ export default function ScamTypes() {
           })}
         </div>
       )}
+      {scams?.length > 0 && visible?.length === 0 && <p className="dashboard-muted">No guides match your search. Try another phrase or clear the filters.</p>}
+      <div className="learning-cta"><div><h2>Have something suspicious to check?</h2><p>Choose the scanner that fits your link, QR code or message.</p></div><Link className="premium-button" to="/#features">Choose a scanner →</Link></div>
     </div>
   );
 }

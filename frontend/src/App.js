@@ -1,7 +1,8 @@
 import "@/App.css";
 import "@/experience.css";
 import "@/redesign.css";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
+import { purgeExpiredDrafts } from "./lib/scanDraft";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { AuthProvider } from "./context/AuthContext";
@@ -48,6 +49,7 @@ function SiteNavbar() {
 }
 
 function App() {
+  useEffect(() => { purgeExpiredDrafts(); const timer = setInterval(purgeExpiredDrafts, 60000); return () => clearInterval(timer); }, []);
   return (
       <SplashGate>
         <AuthProvider>

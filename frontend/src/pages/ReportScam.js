@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { readDraft, writeDraft, removeDraft } from "../lib/scanDraft";
+import { safeDestination } from "../lib/journey";
 import { Flag, Upload, Phone, ShieldAlert, CheckCircle2, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { api, formatApiErrorDetail } from "../lib/api";
@@ -19,7 +22,14 @@ const EMERGENCY_STEPS = [
 
 export default function ReportScam() {
   const [categories, setCategories] = useState([]);
-  const [form, setForm] = useState({ scam_category: "", description: "", scammer_phone: "", scammer_url: "", amount_lost: "", reporter_name: "", reporter_email: "" });
+  const [restored] = useState(() => readDraft("report"));
+  const emptyForm = { scam_category: "", description: "", scammer_phone: "", scammer_url: "", amount_lost: "", reporter_name: "", reporter_email: "" };
+  const [form, setForm] = useState(() => Object.fromEntries(Object.keys(emptyForm).map((key) => [key, typeof restored?.form?.[key] === "string" ? restored.form[key].slice(0, key === "description" ? 5000 : 2000) : ""])));
+  const returnTo = restored?.returnTo ? safeDestination(restored.returnTo, "/") : null;
+  const updateForm = (value) => { setForm(value); writeDraft("report", { form: value, returnTo, source: restored?.source }); };
+  const [review, setReview] = useState(false);
+  const [error, setError] = useState("");
+  const pending = useRef(false);
   const [screenshot, setScreenshot] = useState("");
   const [fileName, setFileName] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -32,6 +42,7 @@ export default function ReportScam() {
   const onFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Please choose an image."); return; }
     if (file.size > 2 * 1024 * 1024) { toast.error("Screenshot must be under 2MB."); return; }
     const reader = new FileReader();
     reader.onload = () => { setScreenshot(reader.result); setFileName(file.name); };
@@ -40,16 +51,22 @@ export default function ReportScam() {
 
   const submit = async (e) => {
     e.preventDefault();
+    if (pending.current) return;
+    setError("");
     if (!form.scam_category) { toast.error("Please select a scam category."); return; }
     if (form.description.trim().length < 10) { toast.error("Please describe what happened (at least 10 characters)."); return; }
+    if (!review) { setReview(true); requestAnimationFrame(() => document.getElementById("review-heading")?.focus()); return; }
+    pending.current = true;
     setSubmitting(true);
     try {
       await api.post("/reports", { ...form, screenshot });
       setSubmitted(true);
+      removeDraft("report");
       toast.success("Report submitted. Thank you for helping others stay safe.");
     } catch (err) {
-      toast.error(formatApiErrorDetail(err.response?.data?.detail));
+      setError(formatApiErrorDetail(err.response?.data?.detail));
     } finally {
+      pending.current = false;
       setSubmitting(false);
     }
   };
@@ -60,10 +77,10 @@ export default function ReportScam() {
         <CheckCircle2 className="w-16 h-16 text-emerald-700 mx-auto" strokeWidth={1.3} />
         <h1 className="font-heading text-3xl font-bold tracking-tighter mt-6">Report received</h1>
         <p className="text-muted-foreground mt-4 leading-relaxed">
-          Your report helps us track scam patterns and warn others. If you lost money, please also report
+          SafeNet recorded your report for review. It has not been sent to the police. If you lost money, please also report
           officially — call <span className="text-primary font-semibold">1930</span> (India) or file at cybercrime.gov.in / ic3.gov right away.
         </p>
-        <Button onClick={() => { setSubmitted(false); setForm({ scam_category: "", description: "", scammer_phone: "", scammer_url: "", amount_lost: "", reporter_name: "", reporter_email: "" }); setScreenshot(""); setFileName(""); }} variant="outline" className="mt-8 rounded-full" data-testid="report-another-button">
+        <Button onClick={() => { setSubmitted(false); setReview(false); setError(""); removeDraft("report"); setForm({ scam_category: "", description: "", scammer_phone: "", scammer_url: "", amount_lost: "", reporter_name: "", reporter_email: "" }); setScreenshot(""); setFileName(""); }} variant="outline" className="mt-8 rounded-full" data-testid="report-another-button">
           Submit another report
         </Button>
       </div>
@@ -72,16 +89,20 @@ export default function ReportScam() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16" data-testid="report-page">
       <p className="text-xs uppercase tracking-[0.25em] text-red-700 mb-4">Take action</p>
-      <h1 className="font-heading text-3xl sm:text-4xl font-semibold tracking-tight">Report a Scam</h1>
+      <h1 className="font-heading text-3xl sm:text-4xl font-semibold tracking-tight">Report suspicious activity</h1>
       <p className="mt-5 text-base text-muted-foreground max-w-2xl leading-relaxed">
-        Every report makes the internet safer. Share what happened — anonymously if you prefer.
+        Share details with SafeNet for review. A SafeNet report is not an official police complaint. You can report without an account.
       </p>
 
+      {returnTo && <Link className="report-back-link" to={returnTo}>← Back to your assessment</Link>}
       <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-10">
         <form onSubmit={submit} className="lg:col-span-7 rounded-xl border bg-card p-8 space-y-6" data-testid="report-form">
+          {error && <p role="alert" className="form-error">{error} Your draft is still here; review it and try again.</p>}
+          {review && <section className="report-review" aria-labelledby="review-heading"><h2 id="review-heading" tabIndex={-1}>Review your report</h2><p>Check your details before sending them to SafeNet. This does not submit an official complaint.</p><dl>{Object.entries(form).filter(([, value]) => value).map(([key, value]) => <div key={key}><dt>{({scam_category:"Category",description:"What happened",scammer_phone:"Phone",scammer_url:"Website or link",amount_lost:"Amount",reporter_name:"Your name",reporter_email:"Your email"})[key]}</dt><dd>{value}</dd></div>)}</dl>{fileName && <p>Screenshot: {fileName}</p>}<Button type="button" variant="outline" disabled={submitting} onClick={() => { setReview(false); requestAnimationFrame(() => document.getElementById("report-description")?.focus()); }}>Edit details</Button></section>}
+          <fieldset hidden={review} disabled={submitting} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="report-category">Scam category *</Label>
-            <Select value={form.scam_category} onValueChange={(v) => setForm({ ...form, scam_category: v })}>
+            <Select value={form.scam_category} onValueChange={(v) => updateForm({ ...form, scam_category: v })}>
               <SelectTrigger id="report-category" data-testid="report-category-select"><SelectValue placeholder="Select the type of scam" /></SelectTrigger>
               <SelectContent>
                 {categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -95,37 +116,37 @@ export default function ReportScam() {
             <Textarea
               id="report-description"
               value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              onChange={(e) => updateForm({ ...form, description: e.target.value })}
               placeholder="Describe the scam — what was said, what you were asked to do, how contact was made..."
               className="min-h-[140px]"
               data-testid="report-description-input"
-              required
-            />
+              required minLength={10} maxLength={5000}
+            /><p className="text-xs text-muted-foreground text-right">{form.description.length} / 5,000</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-2">
               <Label htmlFor="report-phone" className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> Scammer's phone number</Label>
-              <Input id="report-phone" value={form.scammer_phone} onChange={(e) => setForm({ ...form, scammer_phone: e.target.value })} placeholder="+91 XXXXX XXXXX" data-testid="report-phone-input" />
+              <Input id="report-phone" value={form.scammer_phone} onChange={(e) => updateForm({ ...form, scammer_phone: e.target.value })} placeholder="+91 XXXXX XXXXX" data-testid="report-phone-input" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="report-url">Suspicious URL / website</Label>
-              <Input id="report-url" value={form.scammer_url} onChange={(e) => setForm({ ...form, scammer_url: e.target.value })} placeholder="http://fake-site.example" data-testid="report-url-input" />
+              <Input id="report-url" value={form.scammer_url} onChange={(e) => updateForm({ ...form, scammer_url: e.target.value })} placeholder="http://fake-site.example" data-testid="report-url-input" />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-2">
               <Label htmlFor="report-amount">Amount lost (if any)</Label>
-              <Input id="report-amount" value={form.amount_lost} onChange={(e) => setForm({ ...form, amount_lost: e.target.value })} placeholder="e.g. ₹5,000 or $100" data-testid="report-amount-input" />
+              <Input id="report-amount" value={form.amount_lost} onChange={(e) => updateForm({ ...form, amount_lost: e.target.value })} placeholder="e.g. ₹5,000 or $100" data-testid="report-amount-input" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="report-screenshot">Screenshot (optional, max 2MB)</Label>
               <div className="flex items-center gap-2">
                 <label className="flex-1 cursor-pointer">
-                  <div className="flex items-center gap-2 rounded-md border border-input px-3 h-10 text-sm text-muted-foreground hover:border-sky-500/60 transition-colors duration-200">
+                  <button type="button" onClick={() => document.getElementById("report-screenshot")?.click()} className="flex items-center gap-2 rounded-md border border-input px-3 h-11 text-sm text-muted-foreground hover:border-sky-500/60 transition-colors duration-200">
                     <Upload className="w-4 h-4" /> <span className="truncate">{fileName || "Upload image"}</span>
-                  </div>
+                  </button>
                   <input id="report-screenshot" type="file" accept="image/*" onChange={onFile} className="hidden" data-testid="report-screenshot-input" />
                 </label>
                 {screenshot && (
@@ -140,21 +161,23 @@ export default function ReportScam() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="space-y-2">
               <Label htmlFor="report-reporter-name">Your name (optional)</Label>
-              <Input id="report-reporter-name" value={form.reporter_name} onChange={(e) => setForm({ ...form, reporter_name: e.target.value })} placeholder="Anonymous" data-testid="report-name-input" />
+              <Input id="report-reporter-name" value={form.reporter_name} onChange={(e) => updateForm({ ...form, reporter_name: e.target.value })} placeholder="Anonymous" data-testid="report-name-input" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="report-reporter-email">Your email (optional)</Label>
-              <Input id="report-reporter-email" type="email" value={form.reporter_email} onChange={(e) => setForm({ ...form, reporter_email: e.target.value })} placeholder="you@example.com" data-testid="report-email-input" />
+              <Input id="report-reporter-email" type="email" value={form.reporter_email} onChange={(e) => updateForm({ ...form, reporter_email: e.target.value })} placeholder="you@example.com" data-testid="report-email-input" />
             </div>
           </div>
 
+          </fieldset>
+          <p className="text-xs text-muted-foreground">Do not include passwords, OTPs or payment credentials. Form text is restored in this tab for 15 minutes; screenshots are kept only while this form is open.</p>
           <Button type="submit" disabled={submitting} className="w-full rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground h-11" data-testid="report-submit-button">
-            {submitting ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</>) : (<><Flag className="w-4 h-4 mr-2" /> Submit Report</>)}
+            {submitting ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</>) : (<><Flag className="w-4 h-4 mr-2" /> {review ? "Confirm and submit report" : "Review report"}</>)}
           </Button>
         </form>
 
         <aside className="lg:col-span-5">
-          <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-7 sticky top-24" data-testid="emergency-steps-panel">
+          <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-7 sticky top-24" id="emergency-help" data-testid="emergency-steps-panel">
             <h2 className="font-heading text-lg font-semibold tracking-tight flex items-center gap-2.5">
               <ShieldAlert className="w-5 h-5 text-red-700" /> Emergency steps if you've been scammed
             </h2>
@@ -165,7 +188,7 @@ export default function ReportScam() {
                   {s}
                 </li>
               ))}
-            </ol>
+            </ol><div className="official-help-links"><a href="https://cybercrime.gov.in/" target="_blank" rel="noopener noreferrer">India: National Cyber Crime Reporting Portal ↗</a><a href="https://www.ic3.gov/" target="_blank" rel="noopener noreferrer">USA: FBI Internet Crime Complaint Center ↗</a><p>Elsewhere, use your local authority's official reporting guidance.</p></div>
           </div>
         </aside>
       </div>

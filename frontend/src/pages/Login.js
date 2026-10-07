@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { authIntent, authLink } from "../lib/journey";
 import { Loader2, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { api, formatApiErrorDetail } from "../lib/api";
@@ -17,16 +18,19 @@ export default function Login() {
   const [showPass, setShowPass] = useState(false);
   const { setUser } = useAuth();
   const navigate = useNavigate();
+  const { search } = useLocation();
+  const { next, context } = authIntent(search);
 
   const submit = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setError("");
     setLoading(true);
     try {
       const { data } = await api.post("/auth/login", form);
       setUser(data);
       toast.success(`Welcome back, ${data.name}!`);
-      navigate(data.role === "admin" ? "/admin" : "/dashboard");
+      navigate(next === "/dashboard" && data.role === "admin" ? "/admin" : next, { replace: true });
     } catch (err) {
       setError(formatApiErrorDetail(err.response?.data?.detail));
     } finally {
@@ -35,10 +39,10 @@ export default function Login() {
   };
 
   return (
-    <AuthLayout testId="login-page">
+    <AuthLayout testId="login-page" returnTo={next.startsWith("/ai") ? next : "/"}>
       <p className="auth-form-kicker">YOUR SAFETY WORKSPACE</p>
-      <h1 className="font-heading text-[1.75rem] font-bold tracking-tighter">Pick up where you left off.</h1>
-      <p className="text-sm text-muted-foreground mt-2">Sign in to your safety plan, recent activity and learning progress.</p>
+      <h1 className="font-heading text-[1.75rem] font-bold tracking-tighter">{next.includes("view=history") ? "Sign in to view your history" : next === "/quiz" ? "Sign in to take the quiz" : next.startsWith("/ai") ? "Sign in, then continue your check" : "Sign in to SafeNet"}</h1>
+      <p className="text-sm text-muted-foreground mt-2">{context}</p>
 
       <div className="mt-8">
         <GoogleSignInButton text="signin_with" />
@@ -68,13 +72,13 @@ export default function Login() {
           </div>
         </div>
         <Button type="submit" disabled={loading} className="w-full rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground h-12 text-[0.9rem] font-medium" data-testid="login-submit-button">
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (<>Open my workspace <ArrowRight className="w-4 h-4 ml-2" /></>)}
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (<>Sign in <ArrowRight className="w-4 h-4 ml-2" /></>)}
         </Button>
       </form>
 
       <p className="text-sm text-center text-muted-foreground mt-8">
         New to SafeNet?{" "}
-        <Link to="/register" className="text-primary font-medium hover:underline" data-testid="login-register-link">Create an account</Link>
+        <Link to={authLink("register", next)} className="text-primary font-medium hover:underline" data-testid="login-register-link">Create account</Link>
       </p>
     </AuthLayout>
   );

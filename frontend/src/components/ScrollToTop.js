@@ -14,9 +14,18 @@ export function ScrollToTop() {
 
   useEffect(() => {
     if (hash) {
-      const target = document.getElementById(hash.slice(1));
-      target?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
-      return;
+      const scroll = () => {
+        const target = document.getElementById(hash.slice(1));
+        if (!target) return false;
+        target.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+        return true;
+      };
+      if (scroll()) return;
+      // Lazy routes may still show their loading state when navigation occurs.
+      const observer = new MutationObserver(() => { if (scroll()) observer.disconnect(); });
+      observer.observe(document.getElementById("main-content"), { childList: true, subtree: true });
+      const timeout = setTimeout(() => observer.disconnect(), 5000);
+      return () => { observer.disconnect(); clearTimeout(timeout); };
     }
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     document.getElementById("main-content")?.focus({ preventScroll: true });

@@ -9,22 +9,26 @@ import { Badge } from "../components/ui/badge";
 export default function ScamDetail() {
   const { slug } = useParams();
   const [scam, setScam] = useState(null);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     // Reset both, or navigating from a missing scam to a valid one keeps
     // showing "not found" forever.
-    setError(false);
+    let active = true;
+    setError("");
     setScam(null);
-    api.get(`/scam-types/${slug}`).then((r) => setScam(r.data)).catch(() => setError(true));
-  }, [slug]);
+    api.get(`/scam-types/${slug}`).then((r) => { if (active) setScam(r.data); }).catch((err) => { if (active) setError(err.response?.status === 404 ? "missing" : "unavailable"); });
+    return () => { active = false; };
+  }, [slug, retry]);
 
   if (error)
-    return <div className="max-w-4xl mx-auto px-4 py-24 text-center text-muted-foreground" data-testid="scam-not-found">Scam type not found. <Link to="/scams" className="text-primary">Back to all scams</Link></div>;
+    return <div className="max-w-4xl mx-auto px-4 py-24 text-center text-muted-foreground" data-testid="scam-not-found">{error === "missing" ? "This guide could not be found." : "This guide could not load. Check your connection and try again."} {error === "unavailable" && <Button type="button" variant="outline" onClick={() => setRetry((value) => value + 1)}>Retry</Button>} <Link to="/scams" className="text-primary">Back to all scams</Link></div>;
   if (!scam)
     return <div className="flex justify-center py-32"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
   const Icon = getIcon(scam.icon);
+  const scanner = /qr/i.test(slug) ? ["qr", "QR Scanner"] : /shopping|website|investment/i.test(slug) ? ["url", "URL Scanner"] : ["detect", "Message Scanner"];
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-16" data-testid="scam-detail-page">
@@ -73,7 +77,7 @@ export default function ScamDetail() {
 
       {scam.real_example && (
         <section className="mt-8">
-          <h2 className="font-heading text-lg font-semibold tracking-tight flex items-center gap-2.5"><FileText className="w-5 h-5 text-amber-800" /> Real-life example</h2>
+          <h2 className="font-heading text-lg font-semibold tracking-tight flex items-center gap-2.5"><FileText className="w-5 h-5 text-amber-800" /> Example scenario</h2>
           <div className="mt-4 rounded-xl border bg-card p-6 text-sm md:text-base leading-relaxed text-muted-foreground italic">
             "{scam.real_example}"
           </div>
@@ -82,11 +86,11 @@ export default function ScamDetail() {
 
       <div className="mt-14 rounded-xl border border-sky-500/30 bg-sky-500/5 p-7 flex flex-col sm:flex-row sm:items-center gap-5">
         <div className="flex-1">
-          <h3 className="font-heading text-base font-semibold tracking-tight">Received a message like this?</h3>
-          <p className="text-sm text-muted-foreground mt-1">Run it through our AI scam detector for an instant risk analysis.</p>
+          <h3 className="font-heading text-base font-semibold tracking-tight">Have something suspicious to check?</h3>
+          <p className="text-sm text-muted-foreground mt-1">Review the contents with the relevant tool before taking action.</p>
         </div>
         <Button asChild className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shrink-0" data-testid="scam-detail-detect-cta">
-          <Link to="/ai?tab=detect"><MessageSquareWarning className="w-4 h-4 mr-1.5" /> Analyze a message</Link>
+          <Link to={`/ai?tab=${scanner[0]}`}><MessageSquareWarning className="w-4 h-4 mr-1.5" /> Open {scanner[1]}</Link>
         </Button>
       </div>
     </div>

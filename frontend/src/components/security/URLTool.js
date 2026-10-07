@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "../../context/AuthContext";
+import { useScanDraft } from "../../lib/scanDraft";
 import { Link2, Loader2 } from "lucide-react";
 import { api, formatApiErrorDetail, getRetryAfterSeconds } from "../../lib/api";
 import { Button } from "../ui/button";
@@ -11,18 +13,24 @@ export { validateURL } from "../../lib/urlValidation";
 
 // The original homepage URL checker, now presented alongside the other tools.
 export function URLTool({ standalone = false, initialURL = "" }) {
-  const [url, setUrl] = useState(initialURL);
-  const [result, setResult] = useState(null);
+  const { user } = useAuth();
+  const [draft, update] = useScanDraft("url", standalone, user?.id || "guest");
+  const url = draft.input;
+  const result = draft.result;
+  const setUrl = (input) => update({ input });
+  const setResult = (value) => update({ result: value });
+  const pending = useRef(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [cooldown, startCooldown] = useCooldown();
-  useEffect(() => { setUrl(initialURL); setResult(null); setError(""); }, [initialURL]);
+  useEffect(() => { if (initialURL) update({ input: initialURL.slice(0, 2000), result: null }); setError(""); }, [initialURL, update]);
   const check = async (event) => {
     event.preventDefault();
-    if (loading || cooldown) return;
+    if (pending.current || loading || cooldown) return;
     const invalid = validateURL(url);
     setError(invalid);
     if (invalid) return;
+    pending.current = true;
     setLoading(true);
     setResult(null);
     try {
@@ -32,7 +40,7 @@ export function URLTool({ standalone = false, initialURL = "" }) {
       const seconds = getRetryAfterSeconds(err);
       if (seconds) startCooldown(seconds);
       else setError(formatApiErrorDetail(err.response?.data?.detail));
-    } finally { setLoading(false); }
+    } finally { pending.current = false; setLoading(false); }
   };
   const inputPanel = (
       <form onSubmit={check} className="url-input-panel rounded-xl border bg-card p-5 sm:p-6" noValidate>

@@ -3,6 +3,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Bot, QrCode, GraduationCap, Flag, Clock, ArrowRight, Award, FileText, Activity, Sparkles, Loader2, AlertCircle, RotateCw } from "lucide-react";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import { ToolChoice, ToolOptions } from "../components/ToolChoice";
+import { authLink } from "../lib/journey";
 import { SafetyPlan } from "../components/SafetyPlan";
 
 const metrics = [
@@ -17,7 +19,7 @@ const dateLabel = (value) => new Date(value).toLocaleString("en-US", { month: "s
 
 function ActivityTable({ records, history = false }) {
   if (!records) return <p className="dashboard-muted">Saved activity is unavailable. Use Retry to load your account records.</p>;
-  if (!records.length) return <div className="dashboard-empty"><Activity size={30} aria-hidden="true" /><h3>No activity to show yet</h3><p>Your saved checks, reports and quiz attempts will appear here.</p><Link to="/ai?tab=url">Run your first check <ArrowRight size={15} aria-hidden="true" /></Link></div>;
+  if (!records.length) return <div className="dashboard-empty"><Activity size={30} aria-hidden="true" /><h3>No activity to show yet</h3><p>Your saved checks, reports and quiz attempts will appear here.</p><Link to="/#features">Choose your first check <ArrowRight size={15} aria-hidden="true" /></Link></div>;
   return <div className="activity-table-wrap"><table className="activity-table"><thead><tr><th>Activity</th><th>Result / status</th><th>Date</th></tr></thead><tbody>{records.map((record, index) => {
     const meta = types[record.type] || { icon: Activity, label: "Activity", tone: "blue" };
     const Icon = meta.icon;
@@ -38,12 +40,18 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
+  const [choosing, setChoosing] = useState(false);
+  const [search, setSearch] = useState("");
+  const [riskFilter, setRiskFilter] = useState("all");
+  const [range, setRange] = useState("all");
+  const [expired, setExpired] = useState(false);
   const [filter, setFilter] = useState("all");
   const [tipIdx, setTipIdx] = useState(0);
   useEffect(() => {
     if (!user) return;
     let active = true;
-    setLoading(true); setError("");
+    setLoading(true); setError(""); setExpired(false);
+    setStats(null); setActivities(null); setChats(null);
     Promise.allSettled([api.get("/user/stats"), api.get("/user/activity"), api.get("/safety-tips"), api.get("/user/chat-sessions"), api.get("/quiz/certificate")]).then(([counts, activity, safety, conversations, award]) => {
       if (!active) return;
       if (counts.status === "fulfilled") setStats(counts.value.data);
@@ -51,6 +59,7 @@ export default function Dashboard() {
       if (safety.status === "fulfilled") setTips(safety.value.data || []);
       if (conversations.status === "fulfilled") setChats(conversations.value.data || []);
       if (award.status === "fulfilled") setCertificate(award.value.data.certificate);
+      if ([counts, activity, conversations].some((response) => response.status === "rejected" && response.reason?.response?.status === 401)) { setExpired(true); setStats(null); setActivities(null); setChats(null); }
       if (counts.status === "rejected" || activity.status === "rejected") setError("Some account activity could not load. Try again to see your latest records.");
       setLoading(false);
     });
@@ -62,11 +71,14 @@ export default function Dashboard() {
     return () => clearInterval(timer);
   }, [tips.length]);
   if (!user || loading) return <div className="dashboard-loading" role="status"><Loader2 className="animate-spin" /><p>Loading your workspace…</p></div>;
+  if (expired) return <div className="dashboard-page"><h1 className="text-2xl font-semibold">Your session expired</h1><p className="dashboard-muted">Sign in again to view private activity.</p><Link className="premium-button" to={authLink("login", history ? "/dashboard?view=history" : "/dashboard")}>Sign in</Link></div>;
   const tip = tips[tipIdx];
-  const visible = activities?.filter((record) => filter === "all" || record.type === filter);
+  const visible = activities?.filter((record) => (filter === "all" || record.type === filter) && (!search.trim() || `${record.title} ${record.subtitle}`.toLowerCase().includes(search.trim().toLowerCase())) && (riskFilter === "all" || record.subtitle === riskFilter) && (range === "all" || Date.now() - new Date(record.timestamp).getTime() <= Number(range) * 86400000));
   const max = Math.max(1, ...metrics.map(({ key }) => stats?.[key] || 0));
   return <div className="dashboard-page" data-testid="dashboard-page">
-    <div className="workspace-page-heading"><div><p className="page-overline">YOUR PERSONAL WORKSPACE</p><h1>{history ? "History" : "Dashboard"}</h1><p>{history ? "Your saved checks, reports and learning activity in one place." : `Welcome back, ${user.name?.split(" ")[0] || "there"}. Keep your next online decision a safer one.`}</p></div><Link to="/ai?tab=url" className="premium-button">Run a check <ArrowRight size={16} aria-hidden="true" /></Link></div>
+    <div className="workspace-page-heading"><div><p className="page-overline">YOUR PERSONAL WORKSPACE</p><h1>{history ? "Activity history" : activities?.length === 0 ? "Welcome to SafeNet" : "Dashboard"}</h1><p>{history ? "Your saved checks, reports and learning activity in one place." : `Welcome back, ${user.name?.split(" ")[0] || "there"}. Keep your next online decision a safer one.`}</p></div><button type="button" onClick={() => setChoosing(true)} className="premium-button">New scan <ArrowRight size={16} aria-hidden="true" /></button></div>
+    <ToolChoice open={choosing} onOpenChange={setChoosing} />
+    {!history && <section className="dashboard-card dashboard-first-action"><h2>What would you like to check?</h2><p className="dashboard-muted">Choose one check to get started. Your learning and safety plan are here when you need them.</p><ToolOptions /></section>}
     {error && <div className="dashboard-error" role="alert"><AlertCircle size={18} /><p>{error}</p><button type="button" onClick={() => setRetry((value) => value + 1)}><RotateCw size={15} /> Retry</button></div>}
     {!history && <>
       {stats && <div className="dashboard-stats">{metrics.map(({ key, label, icon: Icon, tone }) => <div className="dashboard-stat" key={key}><span className={`activity-icon ${tone}`}><Icon size={21} aria-hidden="true" /></span><div><strong>{stats[key] ?? 0}</strong><p>{label}</p></div></div>)}</div>}
@@ -74,7 +86,7 @@ export default function Dashboard() {
       <SafetyPlan />
       <div className="dashboard-guidance-grid">{certificate !== undefined && <section className="dashboard-card certificate-card" data-testid="dashboard-certificate-card"><span className="activity-icon purple"><Award size={23} aria-hidden="true" /></span><div><h2>{certificate ? "Cyber Safety Certificate earned" : "Build your scam-spotting instincts"}</h2><p>{certificate ? `Scored ${certificate.score}/${certificate.total} on ${dateLabel(certificate.issued_at)}. Your certificate is ready to download from the quiz.` : "Practice with the Cyber Safety Quiz. Score 60% or higher to earn your certificate."}</p><Link to="/quiz" data-testid="dashboard-certificate-cta">{certificate ? "View certificate" : "Take the quiz"}<ArrowRight size={15} aria-hidden="true" /></Link></div></section>}{tip && <section className="dashboard-card dashboard-tip"><p className="page-overline"><Sparkles size={14} aria-hidden="true" /> SAFETY TIP</p><h2>{tip.title}</h2><p>{tip.summary}</p><div className="tip-pagination">{tips.slice(0, 6).map((_, index) => <button key={index} type="button" onClick={() => setTipIdx(index)} aria-label={`Show safety tip ${index + 1}`} aria-pressed={tipIdx === index} />)}</div></section>}</div>
     </>}
-    {history && <section className="dashboard-card history-card"><div className="dashboard-card-heading"><h2>Saved activity</h2><span>{visible ? `${visible.length} records` : "Unavailable"}</span></div><div className="history-filters" aria-label="Filter history">{filters.map(([key, label]) => <button key={key} type="button" onClick={() => setFilter(key)} aria-pressed={filter === key}>{label}</button>)}</div><ActivityTable records={visible} history /><p className="history-note">Showing up to 20 recent records available from your account.</p></section>}
+    {history && <section className="dashboard-card history-card"><div className="dashboard-card-heading"><h2>Saved activity</h2><span>{visible ? `${visible.length} records` : "Unavailable"}</span></div><div className="history-filters" aria-label="Filter history">{filters.map(([key, label]) => <button key={key} type="button" onClick={() => setFilter(key)} aria-pressed={filter === key}>{label}</button>)}</div><div className="history-search-controls"><label><span className="sr-only">Search activity</span><input placeholder="Search your activity" value={search} onChange={(e) => setSearch(e.target.value)} /></label><label><span className="sr-only">Filter by assessment</span><select value={riskFilter} onChange={(e) => setRiskFilter(e.target.value)}><option value="all">All assessments</option><option value="safe">Safe</option><option value="suspicious">Suspicious</option><option value="dangerous">High risk</option></select></label><label><span className="sr-only">Filter by date</span><select value={range} onChange={(e) => setRange(e.target.value)}><option value="all">All available dates</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select></label></div>{visible?.length === 0 && activities?.length > 0 ? <p className="dashboard-muted">No activity matches these filters. Try a different search or date range.</p> : <ActivityTable records={visible} history />}<p className="history-note">Showing up to 20 recent records returned by your account. Full targets, risk scores and stored assessment details are not supplied by this activity API. URL checks are not stored.</p></section>}
     <section className="dashboard-card"><div className="dashboard-card-heading"><h2>Conversations with SafeNet AI</h2><Link to="/ai?tab=chat">Ask AI <ArrowRight size={14} aria-hidden="true" /></Link></div>{chats === null ? <p className="dashboard-muted">Conversation history is unavailable right now.</p> : chats.length ? <div className="dashboard-chat-list">{chats.slice(0, history ? 10 : 4).map((chat) => <Link key={chat.session_id} to={`/ai?tab=chat&session=${encodeURIComponent(chat.session_id)}`}><span className="activity-icon purple"><Bot size={18} aria-hidden="true" /></span><div><strong>{chat.last_message?.slice(0, 100) || "Conversation"}</strong><small>{chat.message_count} messages · {dateLabel(chat.updated_at)}</small></div><ArrowRight size={16} aria-hidden="true" /></Link>)}</div> : <div className="dashboard-chat-empty"><Bot size={22} aria-hidden="true" /><p>Your conversations will appear here once you ask SafeNet AI a question.</p></div>}</section>
     <p className="dashboard-account-note"><Clock size={14} aria-hidden="true" />{stats?.member_since ? `Member since ${new Date(stats.member_since).toLocaleDateString("en-US", { month: "long", year: "numeric" })}` : "Personal account"} · Your activity is private to your account.</p>
   </div>;

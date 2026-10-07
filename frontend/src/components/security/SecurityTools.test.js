@@ -19,6 +19,7 @@ let container, root;
 beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   jest.clearAllMocks();
+  sessionStorage.clear();
   api.get.mockResolvedValue({ data: [] });
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -103,7 +104,8 @@ test("dedicated URL result preserves the entered URL and supports returning to t
   expect(container.querySelector("input")).toBeNull();
   expect(container.textContent).toContain("Scanned URL");
   expect(container.textContent).toContain("https://example.com");
-  expect(container.querySelector('[role="meter"]').getAttribute("aria-valuenow")).toBe("8");
+  expect(container.querySelector('[aria-label="AI risk score: 8 out of 100"]')).not.toBeNull();
+  expect(container.querySelector('[role="meter"]')).toBeNull();
   expect(container.textContent).not.toContain("SSL Certificate");
   await click(".result-toolbar > button");
   expect(container.querySelector("input").value).toBe("https://example.com");
@@ -137,6 +139,7 @@ test("closing QR tool stops and clears the camera", async () => {
   const scanner = { start: jest.fn().mockResolvedValue(), stop: jest.fn().mockResolvedValue(), clear: jest.fn() };
   Html5Qrcode.mockImplementation(() => scanner);
   await render(<QRTab active />);
+  await click('.qr-methods button:nth-child(2)');
   await click('[data-testid="qr-camera-button"]');
   expect(scanner.start).toHaveBeenCalled();
   await render(<QRTab active={false} />);
@@ -147,8 +150,10 @@ test("closing QR tool stops and clears the camera", async () => {
 test("camera denial leaves the upload fallback available and explains the error", async () => {
   Html5Qrcode.mockImplementation(() => ({ start: jest.fn().mockRejectedValue(new Error("denied")), clear: jest.fn() }));
   await render(<QRTab />);
+  await click('.qr-methods button:nth-child(2)');
   await click('[data-testid="qr-camera-button"]');
   expect(container.querySelector('[role="alert"]').textContent).toContain("Could not access the camera");
+  await click('.qr-methods button:first-child');
   expect(container.querySelector('[data-testid="qr-dropzone"]').getAttribute("aria-disabled")).toBe("false");
 });
 
@@ -202,4 +207,62 @@ test("QR image upload still decodes locally and uses the original analysis endpo
   expect(scanner.scanFile).toHaveBeenCalledWith(file, false);
   expect(api.post).toHaveBeenCalledWith("/ai/qr", { content: "https://example.com" });
   expect(container.textContent).toContain("Real endpoint response");
+});
+
+
+test("a restored assessment renders without a second analysis or save request", async () => {
+  api.post.mockResolvedValue({ data: { risk_level: "safe", risk_score: 10, explanation: "Previously returned assessment" } });
+  await render(<URLTool standalone />);
+  await fill("input", "https://example.com");
+  await click('[data-testid="url-check-button"]');
+  await render(<div />);
+  await render(<URLTool standalone />);
+  expect(container.textContent).toContain("Previously returned assessment");
+  expect(api.post).toHaveBeenCalledTimes(1);
+  expect(container.textContent).toContain("not stored in account history");
+});
+
+test("report action transfers only supported editable context", async () => {
+  sessionStorage.setItem("safenet-journey:report", JSON.stringify({ expires: Date.now() + 10000, value: { source: "url:https://unrelated.example", form: { scammer_url: "https://unrelated.example", amount_lost: "100" } } }));
+  await render(<ScanResult standalone kind="detect" target="Harmless sample message" result={{ risk_level: "suspicious", risk_score: 40 }} />);
+  const report = container.querySelector('a[href="/report"]');
+  report.addEventListener("click", (event) => event.preventDefault());
+  await act(async () => report.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })));
+  const raw = JSON.parse(sessionStorage.getItem("safenet-journey:report"));
+  expect(raw.value.form).toEqual({ description: "Harmless sample message" });
+  expect(raw.value.returnTo).toBe("/ai?tab=detect");
+  expect(api.post).not.toHaveBeenCalled();
+});
+
+test("conversation retrieval failure is explicit and retry restores the existing messages", async () => {
+  api.get.mockRejectedValue(new Error("Offline"));
+  await render(<ChatTab />);
+  expect(container.querySelector('[role="alert"]').textContent).toContain("could not load");
+  expect(container.querySelector("textarea").disabled).toBe(true);
+  api.get.mockResolvedValue({ data: [{ role: "assistant", content: "Stored reply" }] });
+  await click(".support-link");
+  expect(container.textContent).toContain("Stored reply");
+  expect(container.querySelector("textarea").disabled).toBe(false);
+});
+
+
+test("expired chat session provides contextual sign-in instead of silently starting an empty conversation", async () => {
+  api.get.mockRejectedValue({ response: { status: 401 } });
+  await render(<ChatTab />);
+  expect(container.querySelector('[role="alert"]').textContent).toContain("session expired");
+  expect(container.querySelector('a[href^="/login?next="]').textContent).toContain("Sign in to continue");
+  expect(container.querySelector("textarea").disabled).toBe(true);
+});
+
+
+test("long message results retain full contents while report context respects the existing report limit", async () => {
+  const message = "Harmless sample text. ".repeat(270);
+  await render(<ScanResult standalone kind="detect" target={message} result={{ risk_level: "safe", risk_score: 2 }} />);
+  const details = [...container.querySelectorAll("details")].find((detail) => detail.textContent.includes("View the full message"));
+  expect(details.querySelector("p").textContent).toBe(message);
+  const report = container.querySelector('a[href="/report"]');
+  report.addEventListener("click", (event) => event.preventDefault());
+  await act(async () => report.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })));
+  expect(JSON.parse(sessionStorage.getItem("safenet-journey:report")).value.form.description).toBe(message.slice(0, 5000));
+  expect(api.post).not.toHaveBeenCalled();
 });

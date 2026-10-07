@@ -60,3 +60,13 @@ test("API failure is shown as unavailable rather than fabricated zero activity, 
   expect(container.querySelector('[role="alert"]')).toBeNull();
   expect(container.querySelector(".dashboard-stat strong").textContent).toBe("4");
 });
+
+
+test("expired sessions hide private activity and preserve History as the login destination", async () => {
+  mockView = "history";
+  api.get.mockRejectedValue({ response: { status: 401 } });
+  await render();
+  expect(container.textContent).toContain("Your session expired");
+  expect(container.querySelector('a[href="/login?next=%2Fdashboard%3Fview%3Dhistory"]')).not.toBeNull();
+  expect(container.querySelector(".activity-table")).toBeNull();
+});

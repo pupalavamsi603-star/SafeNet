@@ -1,0 +1,52 @@
+import { act } from "react";
+import { createRoot } from "react-dom/client";
+import ReportScam from "./ReportScam";
+import Contact from "./Contact";
+import { api } from "../lib/api";
+import { readDraft, writeDraft } from "../lib/scanDraft";
+
+jest.mock("react-router-dom", () => ({ Link: ({ to, children, ...props }) => <a href={to} {...props}>{children}</a> }), { virtual: true });
+jest.mock("../lib/api", () => ({ api: { get: jest.fn(), post: jest.fn() }, formatApiErrorDetail: () => "Service unavailable" }));
+let container, root;
+beforeEach(() => { globalThis.IS_REACT_ACT_ENVIRONMENT = true; sessionStorage.clear(); jest.clearAllMocks(); api.get.mockResolvedValue({ data: [] }); container = document.createElement("div"); document.body.appendChild(container); root = createRoot(container); });
+afterEach(async () => { await act(async () => root.unmount()); container.remove(); });
+const render = (ui) => act(async () => root.render(ui));
+const submit = () => act(async () => container.querySelector("form").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+const fill = (id, value) => act(async () => { const input = container.querySelector(id); Object.getOwnPropertyDescriptor(input.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype, "value").set.call(input, value); input.dispatchEvent(new Event("input", { bubbles: true })); });
+test("result context stays editable, review makes no request, and failure retains the draft", async () => {
+  writeDraft("report", { form: { scammer_url: "https://example.com", scam_category: "Other", description: "Harmless report fixture for a unit test." }, returnTo: "/ai?tab=url" });
+  api.post.mockRejectedValue(new Error("Offline"));
+  await render(<ReportScam />);
+  expect(container.querySelector("#report-url").value).toBe("https://example.com");
+  expect(container.querySelector('a[href="/ai?tab=url"]')).not.toBeNull();
+  await fill("#report-url", "https://edited.example");
+  await submit();
+  expect(container.textContent).toContain("Review your report");
+  expect(api.post).not.toHaveBeenCalled();
+  await submit();
+  expect(container.querySelector('[role="alert"]').textContent).toContain("draft is still here");
+  expect(readDraft("report").form.scammer_url).toBe("https://edited.example");
+  expect(container.querySelector('[data-testid="report-success"]')).toBeNull();
+});
+test("confirmation is shown only for a real successful response and repeated submit is guarded", async () => {
+  writeDraft("report", { form: { scam_category: "Other", description: "A disposable unit test report fixture." } });
+  let resolve;
+  api.post.mockImplementation(() => new Promise((done) => { resolve = done; }));
+  await render(<ReportScam />);
+  await submit(); await submit(); await submit();
+  expect(api.post).toHaveBeenCalledTimes(1);
+  expect(container.querySelector('[data-testid="report-success"]')).toBeNull();
+  await act(async () => resolve({ data: { id: "fixture" } }));
+  expect(container.querySelector('[data-testid="report-success"]')).not.toBeNull();
+  expect(readDraft("report")).toBeNull();
+});
+test("support failure retains the message and makes no unsupported contact promise", async () => {
+  api.post.mockRejectedValue(new Error("Offline"));
+  await render(<Contact />);
+  await fill("#contact-message", "A harmless unit test feedback draft.");
+  await submit();
+  expect(container.querySelector("#contact-message").value).toContain("feedback draft");
+  expect(container.querySelector('[role="alert"]').textContent).toContain("still here");
+  expect(container.textContent).not.toContain("hello@safenet.example");
+  expect(container.textContent).not.toContain("1-2 business days");
+});

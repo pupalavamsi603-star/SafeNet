@@ -8,6 +8,8 @@ import { nativeAuthHeaders } from "../../lib/nativeAuth";
 import { PhonePairing } from "./PhonePairing";
 import { ScanResult } from "./ScanResult";
 import { ChatMessageContent } from "./ChatMessageContent";
+import { useScanDraft } from "../../lib/scanDraft";
+import { authLink } from "../../lib/journey";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 
@@ -83,6 +85,10 @@ export function ChatTab({ resumeSession, compact = false }) {
   const [streaming, setStreaming] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [chatError, setChatError] = useState("");
+  const [historyError, setHistoryError] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [historyRetry, setHistoryRetry] = useState(0);
+  const sendPending = useRef(false);
   const [cooldown, startCooldown] = useCooldown();
   const endRef = useRef(null);
   const requestRef = useRef(null);
@@ -102,6 +108,8 @@ export function ChatTab({ resumeSession, compact = false }) {
     setStreaming(false);
     setHistoryLoading(true);
     setChatError("");
+    setHistoryError(false);
+    setSessionExpired(false);
 
     let cancelled = false;
     api.get(`/ai/chat/${nextSessionId}/history`)
@@ -120,7 +128,7 @@ export function ChatTab({ resumeSession, compact = false }) {
           localStorage.setItem(sessionKey(uid), fresh);
           activeSessionRef.current = fresh;
           setSessionId(fresh);
-        }
+        } else { setHistoryError(true); setSessionExpired(err.response?.status === 401); setChatError(err.response?.status === 401 ? "Your session expired. Sign in again to continue your conversation." : "Your conversation could not load. Retry to continue it, or start a new chat."); }
       })
       .finally(() => { if (!cancelled) setHistoryLoading(false); });
 
@@ -129,7 +137,7 @@ export function ChatTab({ resumeSession, compact = false }) {
       activeSessionRef.current = null;
       requestRef.current?.abort();
     };
-  }, [uid, resumeSession]);
+  }, [uid, resumeSession, historyRetry]);
 
   useEffect(() => {
     if (endRef.current?.parentElement) {
@@ -141,7 +149,7 @@ export function ChatTab({ resumeSession, compact = false }) {
   // Sessions persist per account, so without this there was no way to leave a
   // long conversation behind and start fresh.
   const startNewChat = () => {
-    if (streaming || historyLoading) return;
+    if (streaming || historyLoading || sessionExpired) return;
     const fresh = newSessionId();
     localStorage.setItem(sessionKey(uid), fresh);
     activeSessionRef.current = fresh;
@@ -149,16 +157,19 @@ export function ChatTab({ resumeSession, compact = false }) {
     setMessages([]);
     setInput("");
     setChatError("");
+    setHistoryError(false);
   };
 
   const send = async (text) => {
     const msg = (text || input).trim();
-    if (!msg || streaming || historyLoading || cooldown) return;
+    if (!msg || streaming || historyLoading || historyError || sessionExpired || cooldown || sendPending.current) return;
+    sendPending.current = true;
     const activeSessionId = sessionId;
     const controller = new AbortController();
     requestRef.current = controller;
     const timeout = setTimeout(() => controller.abort(), 60000);
     setChatError("");
+    setHistoryError(false);
     setInput("");
     setMessages((m) => [...m, { role: "user", content: msg }, { role: "assistant", content: "" }]);
     setStreaming(true);
@@ -195,6 +206,12 @@ export function ChatTab({ resumeSession, compact = false }) {
         toast.warning(`You're sending messages too fast — try again in ${secs}s.`);
         return;
       }
+      if (res.status === 401) {
+        setSessionExpired(true);
+        setChatError("Your session expired. Sign in again to continue your conversation.");
+        setInput(msg); setMessages((messages) => messages.slice(0, -2));
+        return;
+      }
       if (!res.ok) throw new Error("Chat failed");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -222,6 +239,7 @@ export function ChatTab({ resumeSession, compact = false }) {
       toast.error("AI chat failed. Please try again.");
     } finally {
       clearTimeout(timeout);
+      sendPending.current = false;
       if (activeSessionRef.current === activeSessionId) {
         setStreaming(false);
       }
@@ -234,7 +252,7 @@ export function ChatTab({ resumeSession, compact = false }) {
         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">SafeNet AI</p>
         <Button
           onClick={startNewChat}
-          disabled={streaming || historyLoading || messages.length === 0}
+          disabled={streaming || historyLoading || sessionExpired || (messages.length === 0 && !historyError)}
           variant="ghost"
           size="sm"
           className="rounded-lg text-xs gap-1.5 h-8"
@@ -256,7 +274,7 @@ export function ChatTab({ resumeSession, compact = false }) {
                 <button
                   key={s}
                   onClick={() => send(s)}
-                  disabled={streaming || historyLoading || !!cooldown}
+                  disabled={streaming || historyLoading || historyError || sessionExpired || !!cooldown}
                   data-testid="chat-suggestion-button"
                   className="text-left text-xs rounded-lg border px-4 py-3 hover:border-sky-500/50 hover:text-primary transition-colors duration-200"
                 >
@@ -299,6 +317,8 @@ export function ChatTab({ resumeSession, compact = false }) {
       <div className="border-t p-4 space-y-3">
         {historyLoading && <p role="status" className="text-xs text-muted-foreground">Loading conversation…</p>}
         {chatError && <p role="alert" className="text-sm text-red-700">{chatError}</p>}
+        {sessionExpired && <a className="support-link" href={authLink("login", `/ai?tab=chat&session=${encodeURIComponent(sessionId)}`)}>Sign in to continue</a>}
+        {historyError && <button type="button" className="support-link" onClick={() => setHistoryRetry((value) => value + 1)}>Retry loading conversation</button>}
         <CooldownBanner seconds={cooldown} label="SafeBot needs a short break — too many messages at once." />
         <div className="flex gap-3">
           <Textarea
@@ -309,10 +329,10 @@ export function ChatTab({ resumeSession, compact = false }) {
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } }}
             placeholder={cooldown ? `Please wait ${cooldown}s...` : "Ask about scams, passwords, safe browsing..."}
             className="min-h-[48px] max-h-32 resize-none"
-            disabled={streaming || historyLoading || !!cooldown}
+            disabled={streaming || historyLoading || historyError || sessionExpired || !!cooldown}
             data-testid="chat-input"
           />
-          <Button onClick={() => send()} disabled={streaming || historyLoading || !!cooldown || !input.trim()} className="bg-primary hover:bg-primary/90 text-primary-foreground self-end rounded-lg h-11 w-11 p-0" data-testid="chat-send-button" aria-label="Send">
+          <Button onClick={() => send()} disabled={streaming || historyLoading || historyError || sessionExpired || !!cooldown || !input.trim()} className="bg-primary hover:bg-primary/90 text-primary-foreground self-end rounded-lg h-11 w-11 p-0" data-testid="chat-send-button" aria-label="Send">
             {streaming ? <Loader2 className="w-4 h-4 animate-spin" /> : cooldown ? <Timer className="w-4 h-4" /> : <SendHorizonal className="w-4 h-4" />}
           </Button>
         </div>
@@ -322,21 +342,27 @@ export function ChatTab({ resumeSession, compact = false }) {
 }
 
 export function DetectTab({ standalone = false }) {
-  const [message, setMessage] = useState("");
-  const [result, setResult] = useState(null);
+  const { user, loading: checkingSession } = useAuth();
+  const [draft, update] = useScanDraft("detect", standalone, user?.id || "guest");
+  const message = draft.input;
+  const result = draft.result;
+  const setMessage = (input) => update({ input });
+  const setResult = (value) => update({ result: value, savedFor: null });
+  const pending = useRef(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [cooldown, startCooldown] = useCooldown();
 
   const analyze = async () => {
     if (message.trim().length < 5) { setError("Enter at least 5 characters to analyze a message."); return; }
-    if (cooldown || loading) return;
+    if (cooldown || loading || pending.current) return;
+    pending.current = true;
     setLoading(true);
     setError("");
     setResult(null);
     try {
       const { data } = await api.post("/ai/detect", { message });
-      setResult(data);
+      update({ result: data, savedFor: checkingSession ? "unconfirmed" : user?.id || null });
     } catch (e) {
       const secs = getRetryAfterSeconds(e);
       if (secs) {
@@ -346,6 +372,7 @@ export function DetectTab({ standalone = false }) {
         setError(formatApiErrorDetail(e.response?.data?.detail));
       }
     } finally {
+      pending.current = false;
       setLoading(false);
     }
   };
@@ -383,12 +410,20 @@ export function DetectTab({ standalone = false }) {
         </div>
       </div>}
 
-      <ScanResult result={result} loading={loading} kind="detect" standalone={standalone} onRescan={() => { setResult(null); requestAnimationFrame(() => document.getElementById("detect-message")?.focus()); }} />
+      <ScanResult result={result} loading={loading} kind="detect" standalone={standalone} target={message} savedFor={draft.savedFor} onRescan={() => { setResult(null); requestAnimationFrame(() => document.getElementById("detect-message")?.focus()); }} />
     </div>
   );
 }
 
 export function QRTab({ active = true, mobile = false, onDecoded, standalone = false }) {
+  const { user, loading: checkingSession } = useAuth();
+  const [draft, update] = useScanDraft("qr", standalone && !onDecoded, user?.id || "guest");
+  const result = draft.result;
+  const setResult = (value) => update({ result: value, savedFor: null });
+  const decodedContent = draft.input;
+  const setDecodedContent = (input) => update({ input });
+  const [method, setMethod] = useState(onDecoded ? "camera" : "upload");
+  const analysisPending = useRef(false);
   const [phoneScreen, setPhoneScreen] = useState(() => mobile || !!window.matchMedia?.("(max-width: 767px)").matches);
   useEffect(() => {
     if (!window.matchMedia) return;
@@ -397,11 +432,9 @@ export function QRTab({ active = true, mobile = false, onDecoded, standalone = f
     query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
   }, [mobile]);
-  const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [decodedContent, setDecodedContent] = useState("");
   const [decoding, setDecoding] = useState(false);
   const busyRef = useRef(false);
   const activeRef = useRef(active);
@@ -428,14 +461,15 @@ export function QRTab({ active = true, mobile = false, onDecoded, standalone = f
   }, [active, stopCamera]);
 
   const analyze = async (decoded) => {
-    if (cooldown || loading) return;
+    if (cooldown || loading || analysisPending.current) return;
+    analysisPending.current = true;
     setLoading(true);
     setError("");
     setResult(null);
     try {
       if (onDecoded) { await onDecoded(decoded); return true; }
       const { data } = await api.post("/ai/qr", { content: decoded });
-      setResult({ ...data, decoded });
+      update({ result: { ...data, decoded }, input: decoded, savedFor: checkingSession ? "unconfirmed" : user?.id || null });
       return true;
     } catch (e) {
       const secs = getRetryAfterSeconds(e);
@@ -447,6 +481,7 @@ export function QRTab({ active = true, mobile = false, onDecoded, standalone = f
       }
       return false;
     } finally {
+      analysisPending.current = false;
       setLoading(false);
     }
   };
@@ -520,13 +555,13 @@ export function QRTab({ active = true, mobile = false, onDecoded, standalone = f
           Found a QR on a poster, parcel, payment request, or message? Check it here <span className="font-medium text-foreground">before</span> you open it.
         </p>
 
-        {!phoneScreen && !onDecoded && <PhonePairing active={active} disabled={loading || decoding || scanning || !!cooldown} onDecoded={async (decoded) => { setDecodedContent(decoded); await stopCamera(); return analyze(decoded); }} />}
-        {phoneScreen && !scanning && <Button onClick={startCamera} disabled={loading || decoding || !!cooldown} className="mt-4 w-full" data-testid="qr-mobile-camera-button"><Camera className="w-4 h-4 mr-2" />Scan QR with camera</Button>}
-        {phoneScreen && <p className="mt-3 text-sm text-muted-foreground">Point your camera at the QR code.</p>}
+        <div className="qr-methods" role="group" aria-label="QR scan method">{[["upload", Upload, "Upload image"], ["camera", Camera, "Use camera"], ...(!phoneScreen && !onDecoded ? [["phone", QrCode, "Use phone"]] : [])].map(([key, Icon, label]) => <button key={key} type="button" aria-pressed={method === key} disabled={loading || decoding || !!cooldown} onClick={async () => { if (method !== key) { await stopCamera(); setMethod(key); setError(""); } }}><Icon size={18} aria-hidden="true" />{label}</button>)}</div>
+        {method === "phone" && !phoneScreen && !onDecoded && <PhonePairing active={active} disabled={loading || decoding || scanning || !!cooldown} onDecoded={async (decoded) => { setDecodedContent(decoded); await stopCamera(); return analyze(decoded); }} />}
+        {method === "camera" && !scanning && <><p className="mt-4 text-sm text-muted-foreground">Camera access starts only when you choose Start camera. Point it at a QR code; destinations are never opened.</p><Button onClick={startCamera} disabled={loading || decoding || !!cooldown} className="mt-4 w-full" data-testid={phoneScreen ? "qr-mobile-camera-button" : "qr-camera-button"}><Camera className="w-4 h-4 mr-2" />Start camera</Button></>}
         {/* camera reader mounts here */}
         <div id={readerId} className={`mt-4 rounded-xl overflow-hidden ${scanning ? "border" : ""}`} />
 
-        {!scanning && (
+        {!scanning && method === "upload" && (
           <div
             role="button"
             tabIndex={loading || decoding || cooldown ? -1 : 0}
@@ -548,15 +583,12 @@ export function QRTab({ active = true, mobile = false, onDecoded, standalone = f
         )}
 
         <p role="alert" className="text-sm text-red-700 mt-3">{error}</p>
+        {decodedContent && !result && !loading && <div className="decoded-content"><strong>Decoded content</strong><p className="break-all">{decodedContent}</p><Button type="button" onClick={() => analyze(decodedContent)} disabled={!!cooldown}>Retry analysis</Button></div>}
         {decoding && <p role="status" className="text-sm mt-3">Decoding QR image…</p>}
         <p className="text-xs text-muted-foreground mt-3">Images up to 10 MB. Decoded content is sent for AI analysis.</p>
         <div className="mt-4 space-y-3">
           <CooldownBanner seconds={cooldown} label="Scan limit reached." />
-          {!scanning && !phoneScreen ? (
-            <Button onClick={startCamera} disabled={loading || decoding || !!cooldown} variant="outline" className="w-full rounded-lg" data-testid="qr-camera-button">
-              <Camera className="w-4 h-4 mr-2" /> Scan with camera
-            </Button>
-          ) : scanning ? (
+          {scanning ? (
             <Button onClick={stopCamera} variant="outline" className="w-full rounded-lg border-red-500/40 text-red-500 hover:text-red-600" data-testid="qr-stop-button">
               <X className="w-4 h-4 mr-2" /> Stop camera
             </Button>
@@ -564,7 +596,7 @@ export function QRTab({ active = true, mobile = false, onDecoded, standalone = f
         </div>
       </div>}
 
-      {!onDecoded && <ScanResult result={result} loading={loading} kind="qr" decoded={decodedContent} standalone={standalone} onRescan={() => { setResult(null); setDecodedContent(""); }} />}
+      {!onDecoded && <ScanResult result={result} loading={loading} kind="qr" decoded={decodedContent} savedFor={draft.savedFor} standalone={standalone} onRescan={() => { setResult(null); setDecodedContent(""); }} />}
     </div>
   );
 }

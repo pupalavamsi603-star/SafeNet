@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { authIntent, authLink } from "../lib/journey";
 import { Loader2, Eye, EyeOff, ArrowRight, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { api, formatApiErrorDetail } from "../lib/api";
@@ -17,12 +18,15 @@ export default function Register() {
   const [showPass, setShowPass] = useState(false);
   const { setUser } = useAuth();
   const navigate = useNavigate();
+  const { search } = useLocation();
+  const { next, context } = authIntent(search);
 
   const passOk = form.password.length >= 6;
   const matchOk = form.confirm.length > 0 && form.password === form.confirm;
 
   const submit = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setError("");
     if (!passOk) { setError("Password must be at least 6 characters."); return; }
     if (form.password !== form.confirm) { setError("Passwords do not match."); return; }
@@ -31,7 +35,7 @@ export default function Register() {
       const { data } = await api.post("/auth/register", { name: form.name, email: form.email, password: form.password });
       setUser(data);
       toast.success(`Welcome to SafeNet, ${data.name}!`);
-      navigate(data.role === "admin" ? "/admin" : "/dashboard");
+      navigate(next === "/dashboard" && data.role === "admin" ? "/admin" : next, { replace: true });
     } catch (err) {
       setError(formatApiErrorDetail(err.response?.data?.detail));
     } finally {
@@ -40,10 +44,11 @@ export default function Register() {
   };
 
   return (
-    <AuthLayout testId="register-page">
+    <AuthLayout testId="register-page" returnTo={next.startsWith("/ai") ? next : "/"}>
       <p className="auth-form-kicker">YOUR SAFETY WORKSPACE</p>
       <h1 className="font-heading text-[1.75rem] font-bold tracking-tighter">Make safety a habit.</h1>
       <p className="text-sm text-muted-foreground mt-2">Create a free account for your private safety plan, activity and learning progress.</p>
+      {next !== "/dashboard" && <p className="text-sm text-primary mt-3">{context.replace("Sign in", "Create an account").replace("signing in", "creating an account")}</p>}
 
       <div className="mt-8">
         <GoogleSignInButton text="signup_with" />
@@ -101,7 +106,7 @@ export default function Register() {
 
       <p className="text-sm text-center text-muted-foreground mt-6">
         Already have an account?{" "}
-        <Link to="/login" className="text-primary font-medium hover:underline" data-testid="register-login-link">Log in</Link>
+        <Link to={authLink("login", next)} className="text-primary font-medium hover:underline" data-testid="register-login-link">Sign in</Link>
       </p>
     </AuthLayout>
   );

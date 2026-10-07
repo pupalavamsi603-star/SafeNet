@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { api } from "../lib/api";
 import { clearTokens } from "../lib/nativeAuth";
+import { clearJourneyDrafts } from "../lib/scanDraft";
 
 const AuthContext = createContext(null);
 
@@ -24,6 +25,7 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     try { await api.post("/auth/logout"); } catch (e) { /* ignore */ }
     clearChatSessions();
+    clearJourneyDrafts();
     // Also drop the native bearer tokens even if the request above failed, so a
     // logout with no connectivity still logs the device out. No-op on web.
     clearTokens();
